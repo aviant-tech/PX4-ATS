@@ -3,7 +3,7 @@ name: Compile Nuttx Targets
 on:
   push:
     branches:
-      - 'aviant/1.15'
+      - 'aviant/ats-1.15'
     tags:
       - 'v*'
   pull_request:
@@ -69,12 +69,6 @@ jobs:
     - name: ccache post-run
       run: ccache -s
 
-    - name: Make SITL metadata
-      run: make parameters_metadata
-
-    - name: Rename SITL parameter metadata
-      run: mv build/px4_sitl_default/docs/parameters.json px4_sitl_default__parameters.json
-
     - name: Rename CubeOrange parameter metadata
       run: mv build/${{matrix.config}}/parameters.json ${{matrix.config}}__parameters.json
 
@@ -87,7 +81,6 @@ jobs:
           build/${{matrix.config}}/*.elf
           build/${{matrix.config}}/*.map
           build/${{matrix.config}}/*.bin
-          px4_sitl_default__parameters.json
           ${{matrix.config}}__parameters.json
 
     - name: Release
@@ -100,5 +93,4 @@ jobs:
           build/${{matrix.config}}/*.elf
           build/${{matrix.config}}/*.map
           build/${{matrix.config}}/*.bin
-          px4_sitl_default__parameters.json
           ${{matrix.config}}__parameters.json
