@@ -347,7 +347,10 @@ else
 		fi
 
 		sensors start -h
-		# commander start -h #Disabled for ATS
+		if usb_connected
+		then
+			commander start -h
+		fi
 		# disable GPS
 		param set GPS_1_CONFIG 0
 
@@ -385,7 +388,10 @@ else
 		fi
 
 		sensors start
-		#commander start # Disabled for ATS
+		if usb_connected
+		then
+			commander start
+		fi
 
 		dshot start
 		pwm_out start

@@ -45,41 +45,66 @@ using namespace px4::logger;
 
 void LoggedTopics::add_default_topics()
 {
-	// We know we want these
-	add_optional_topic("px4io_status");
-	add_optional_topic("sensor_airflow", 100);
-	add_optional_topic("sensor_correction");
-	add_optional_topic("sensor_gyro_fft", 50);
-	add_topic("adc_report", 100);
-	add_topic("aviant_ats");
-	add_topic("external_ins_attitude");
-	add_topic("external_vehicle_status");
-	add_topic("parameter_update");
-	add_topic("sensor_combined");
-	add_topic("sensor_selection");
-	add_topic("sensors_status_imu", 200);
-	add_topic("system_power", 500);
-	add_topic("vehicle_acceleration", 50);
-	add_topic("vehicle_air_data", 200);
-	add_topic("vehicle_angular_velocity", 20);
-	add_topic("vehicle_attitude", 50);
-	add_topic("vehicle_command");
-	add_topic("vehicle_command_ack");
-	add_topic("vehicle_local_position", 100);
-	add_topic("vehicle_magnetometer", 200);
+	// Critical input/output of ATS
+	add_topic("adc_report", 0);  // Power loss detection, smaller message than battery_status
+	add_topic("vehicle_attitude", 0);  // Roll/pitch detection, 100Hz
+	add_topic("vehicle_local_position", 0);  // Free-fall detection, 100Hz
+	add_topic("external_ins_attitude", 0);  // Connection loss detection, 10 Hz
+	add_topic("vehicle_command");  // Commands, event-driven
+	add_topic("vehicle_command_ack");  // Commands ack, event-driven
+
+	// Useful
+	add_topic("aviant_ats", 100);  // ATS status
+	add_topic("battery_status", 100, 0);  // UPS voltage, parachute temperature
+	add_topic("battery_status", 100, 1);  // Power loss detection
+	add_topic("external_vehicle_status", 100);  // Autopilot arming state
+	add_topic("sensor_combined", 100);  // Input for attitude and acc estimation
+	add_topic("vehicle_air_data", 100);  // Barometer input for free-fall trigger
+	add_topic("cpuload", 100);  // Load monitoring
+	add_topic("system_power", 100);  // Output power, powers battery thermistor
+	add_topic("sensor_mag", 100); // To see if we can use as redundant mag later
+	add_topic("vehicle_magnetometer", 100); // To see if we can use as redundant mag later
+	add_topic("vehicle_imu_status", 100); // Vibration metric
+	add_topic_multi("telemetry_status", 1000, 2); // Heartbeats
+	add_topic("parameter_update");  // Parameters, event-driven
+
+	// Standard EKF info, enable EKF replay to get high-rate
+	add_topic("estimator_selector_status", 0); // Event-driven
+	add_topic("estimator_attitude", 1000);
+	add_topic("estimator_global_position", 1000);
+	add_topic("estimator_local_position", 1000);
+	add_topic("estimator_wind", 1000);
+	add_topic("estimator_baro_bias", 1000);
+	add_topic("estimator_gnss_hgt_bias", 1000);
+	add_topic("estimator_rng_hgt_bias", 1000);
+	add_topic("estimator_ev_pos_bias", 1000);
+	add_topic("estimator_event_flags", 0);  // Event-driven
+	add_topic("estimator_gps_status", 1000);
+	add_topic("estimator_innovation_test_ratios", 1000);
+	add_topic("estimator_innovation_variances", 1000);
+	add_topic("estimator_innovations", 1000);
+	add_topic("estimator_optical_flow_vel", 1000);
+	add_topic("estimator_sensor_bias", 0);  // Event-driven
+	add_topic("estimator_states", 1000);
+	add_topic("estimator_status", 1000);
+	add_topic("estimator_status_flags", 0);  // Event-driven
+	add_topic("yaw_estimator_status", 1000);
 
 	// Below this is "just in case we need them"
-	add_topic("vehicle_status");
-	add_optional_topic("airspeed_validated", 200);
-	add_topic("airspeed", 1000);
-	add_topic("config_overrides");
-	add_topic("cpuload");
-	add_topic("failsafe_flags");
-	add_topic("failure_detector_status", 100);
-	add_topic("vehicle_global_position", 200);
-	add_topic("vehicle_gnss_heading", 100);
-	add_topic("vehicle_gnss_heading", 100);
-	add_topic("vehicle_gps_position", 100);
+	add_topic("vehicle_status", 1000);  // Should mirror external_vehicle_status
+	add_topic("sensor_selection", 1000);  // Don't have multiple sensors, not expecting to use
+	add_topic("px4io_status", 1000);  // PWM output, not used
+	add_topic("failsafe_flags");  // Should never be set. Even-driven
+	add_topic("failure_detector_status", 1000);  // Should never be set
+	add_topic("config_overrides");  // Should never be used. Event-driven
+	add_topic_multi("sensor_accel", 1000, 4);  // Show connected sensors
+	add_topic_multi("sensor_baro", 1000, 4);  // Show connected sensors
+	add_topic_multi("sensor_gps", 1000, 2);  // Show connected sensors
+	add_topic_multi("sensor_gnss_relative", 1000, 1);  // Show connected sensors
+	add_topic_multi("sensor_gyro", 1000, 4); // Show connected sensors
+	add_topic_multi("sensor_mag", 1000, 4); // Show connected sensors
+	add_topic_multi("sensor_optical_flow", 1000, 2); // Show connected sensors
+
 	/*
 	add_topic("aviant_navigation", 100);
 	add_topic("action_request");
@@ -147,7 +172,6 @@ void LoggedTopics::add_default_topics()
 	add_topic("vehicle_roi", 1000);
 	add_optional_topic("vtol_vehicle_status", 200);
 	add_topic("wind", 1000);
-	*/
 
 	// multi topics
 	add_optional_topic_multi("actuator_outputs", 100, 3);
@@ -158,19 +182,25 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic_multi("rpm", 200);
 	add_topic_multi("timesync_status", 1000, 3);
 	add_optional_topic_multi("telemetry_status", 1000, 4);
+	*/
 
 	// EKF multi topics (currently max 9 estimators)
 #if CONSTRAINED_MEMORY
+	/*
 	static constexpr uint8_t MAX_ESTIMATOR_INSTANCES = 1;
+	*/
 #else
+	/*
 	static constexpr uint8_t MAX_ESTIMATOR_INSTANCES = 6; // artificially limited until PlotJuggler fixed
 	add_optional_topic("estimator_selector_status");
 	add_optional_topic_multi("estimator_attitude", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_global_position", 1000, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_local_position", 500, MAX_ESTIMATOR_INSTANCES);
 	add_optional_topic_multi("estimator_wind", 1000, MAX_ESTIMATOR_INSTANCES);
+	*/
 #endif
 
+	/*
 	// always add the first instance
 	add_topic("estimator_baro_bias", 500);
 	add_topic("estimator_gnss_hgt_bias", 500);
@@ -258,8 +288,10 @@ void LoggedTopics::add_default_topics()
 		add_topic("vehicle_global_position_groundtruth", 100);
 		add_topic("vehicle_local_position_groundtruth", 20);
 	}
+	*/
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
+	static constexpr uint8_t MAX_ESTIMATOR_INSTANCES = 6;
 	add_topic("fw_virtual_attitude_setpoint");
 	add_topic("mc_virtual_attitude_setpoint");
 	add_optional_topic("vehicle_torque_setpoint_virtual_mc");

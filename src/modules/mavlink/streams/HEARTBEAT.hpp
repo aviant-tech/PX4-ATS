@@ -127,13 +127,13 @@ private:
 			}
 
 #if defined CONFIG_MODULES_AVIANT_ATS
-			constexpr uint8_t mav_autopilot_type = MAV_AUTOPILOT_INVALID;
-#else
-			constexpr uint8_t mav_autopilot_type = MAV_AUTOPILOT_PX4;
-#endif
-
-			mavlink_msg_heartbeat_send(_mavlink->get_channel(), _mavlink->get_system_type(), mav_autopilot_type,
+			mavlink_msg_heartbeat_send(_mavlink->get_channel(), _mavlink->get_system_type(),
+						   _mavlink->is_usb_uart() ? MAV_AUTOPILOT_PX4 : MAV_AUTOPILOT_INVALID,
 						   base_mode, custom_mode.data, system_status);
+#else
+			mavlink_msg_heartbeat_send(_mavlink->get_channel(), _mavlink->get_system_type(), MAV_AUTOPILOT_PX4,
+						   base_mode, custom_mode.data, system_status);
+#endif
 
 			return true;
 		}

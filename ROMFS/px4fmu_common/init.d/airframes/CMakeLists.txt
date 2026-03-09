@@ -40,6 +40,12 @@ px4_add_romfs_files(
 	# [22000, 22999] Reserve for custom models
 )
 
+if(CONFIG_MODULES_AVIANT_ATS)
+	px4_add_romfs_files(
+		22000_aviant_ats
+	)
+endif()
+
 if(CONFIG_MODULES_SIMULATION_PWM_OUT_SIM)
 	px4_add_romfs_files(
 		# [1000, 1999] Simulation setups

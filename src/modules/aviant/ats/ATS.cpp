@@ -241,7 +241,7 @@ int ATS::print_usage(const char *reason)
 ### Description
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("aviant_ats", "aviant_ats");
+	PRINT_MODULE_USAGE_NAME("aviant_ats", "system");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 

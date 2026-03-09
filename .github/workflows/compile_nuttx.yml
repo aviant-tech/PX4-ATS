@@ -18,7 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         config: [
-          cubepilot_cubeorange,
+          cubepilot_cubeorange_default,
+          px4_fmu-v3_cubepurple_ats,
           ]
     steps:
     - uses: actions/checkout@v1
@@ -49,7 +50,7 @@ jobs:
           ccache -z
 
     - name: make ${{matrix.config}}
-      run: make ${{matrix.config}}_default
+      run: make ${{matrix.config}}
       timeout-minutes: 45
     - name: make ${{matrix.config}} bloaty_compileunits
       run: make ${{matrix.config}} bloaty_compileunits || true
@@ -75,19 +76,19 @@ jobs:
       run: mv build/px4_sitl_default/docs/parameters.json px4_sitl_default__parameters.json
 
     - name: Rename CubeOrange parameter metadata
-      run: mv build/cubepilot_cubeorange_default/parameters.json cubepilot_cubeorange__parameters.json
+      run: mv build/${{matrix.config}}/parameters.json ${{matrix.config}}__parameters.json
 
     - name: Upload px4 package
       uses: actions/upload-artifact@v4
       with:
-        name: px4_package_cubepilot_cubeorange
+        name: px4_package_${{matrix.config}}
         path: |
-          build/cubepilot_cubeorange_default/*.px4
-          build/cubepilot_cubeorange_default/*.elf
-          build/cubepilot_cubeorange_default/*.map
-          build/cubepilot_cubeorange_default/*.bin
+          build/${{matrix.config}}/*.px4
+          build/${{matrix.config}}/*.elf
+          build/${{matrix.config}}/*.map
+          build/${{matrix.config}}/*.bin
           px4_sitl_default__parameters.json
-          cubepilot_cubeorange__parameters.json
+          ${{matrix.config}}__parameters.json
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -95,9 +96,9 @@ jobs:
       with:
         prerelease: true
         files: |
-          build/cubepilot_cubeorange_default/*.px4
-          build/cubepilot_cubeorange_default/*.elf
-          build/cubepilot_cubeorange_default/*.map
-          build/cubepilot_cubeorange_default/*.bin
+          build/${{matrix.config}}/*.px4
+          build/${{matrix.config}}/*.elf
+          build/${{matrix.config}}/*.map
+          build/${{matrix.config}}/*.bin
           px4_sitl_default__parameters.json
-          cubepilot_cubeorange__parameters.json
+          ${{matrix.config}}__parameters.json
