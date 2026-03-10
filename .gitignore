@@ -6,6 +6,7 @@
 .*.swp
 .context
 .cproject
+.cursor
 .DS_Store
 .gdbinit
 .gdb_history
