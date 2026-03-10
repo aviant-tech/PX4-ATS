@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Apply ATS test parameter overrides from environment variables.
+# These are set by the test fixture before starting PX4.
+[ -n "$ATS_PARAM_ACTIVE" ]    && param set AV_ATS_ACTIVE    $ATS_PARAM_ACTIVE
+[ -n "$ATS_PARAM_TIMEOUT" ]   && param set AV_ATS_TIMEOUT   $ATS_PARAM_TIMEOUT
+[ -n "$ATS_PARAM_ACC_NORM" ]  && param set AV_ATS_ACC_NORM  $ATS_PARAM_ACC_NORM
+[ -n "$ATS_PARAM_ROLL_ANG" ]  && param set AV_ATS_ROLL_ANG  $ATS_PARAM_ROLL_ANG
+[ -n "$ATS_PARAM_PITCH_ANG" ] && param set AV_ATS_PITCH_ANG $ATS_PARAM_PITCH_ANG
+
+aviant_ats start
