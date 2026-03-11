@@ -122,6 +122,7 @@
 #include "streams/WIND_COV.hpp"
 
 #if defined(MAVLINK_ENABLED_AVIANT)
+#include "streams/AVIANT_ATS_STATUS.hpp"
 #include "streams/AVIANT_HEARTBEAT.hpp"
 #include "streams/AVIANT_NAV.hpp"
 #endif // MAVLINK_ENABLED_AVIANT
@@ -511,6 +512,9 @@ static const StreamListItem streams_list[] = {
 #if defined(CURRENT_MODE_HPP)
 	create_stream_list_item<MavlinkStreamCurrentMode>(),
 #endif // CURRENT_MODE_HPP
+#if defined (AVIANT_ATS_STATUS_HPP)
+	create_stream_list_item<MavlinkStreamAviantAtsStatus>(),
+#endif // AVIANT_ATS_STATUS_HPP
 #if defined (AVIANT_HEARTBEAT_HPP)
 	create_stream_list_item<MavlinkStreamAviantHeartbeat>(),
 #endif // AVIANT_HEARTBEAT_HPP
