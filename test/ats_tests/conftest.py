@@ -6,11 +6,18 @@ parameters and post-deploy lockdown state do not leak between tests.
 ATS parameters are passed as environment variables to the PX4 process.
 The airframe .post script reads them and applies ``param set`` before
 starting the aviant_ats module.
+
+The ATS module receives FC state via the AVIANT_DETAILED_FC_STATE
+custom MAVLink message, which populates the
+external_aviant_detailed_fc_state uORB topic.
 """
 
 from __future__ import annotations
 
 import os
+
+os.environ['MAVLINK20'] = '1'
+
 import shutil
 import signal
 import subprocess
@@ -180,6 +187,8 @@ def tester(px4):
     Blocks until EKF2 achieves tilt alignment (publishes vehicle_attitude)
     so that sensor-dependent ATS triggers work reliably.  In SIH the high
     simulated IMU noise makes this take ~30 s.
+
+    Uses AVIANT_DETAILED_FC_STATE to feed FC state to the ATS module.
     """
     time.sleep(1)
 

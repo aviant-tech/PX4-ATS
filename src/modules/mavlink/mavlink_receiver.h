@@ -70,6 +70,7 @@
 #include <uORB/topics/collision_report.h>
 #include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/distance_sensor.h>
+#include <uORB/topics/external_aviant_detailed_fc_state.h>
 #include <uORB/topics/follow_target.h>
 #include <uORB/topics/generator_status.h>
 #include <uORB/topics/gimbal_manager_set_attitude.h>
@@ -207,6 +208,7 @@ private:
 	void handle_message_gimbal_device_information(mavlink_message_t *msg);
 	void handle_message_gimbal_device_attitude_status(mavlink_message_t *msg);
 	void handle_message_external_attitude(mavlink_message_t *msg);
+	void handle_message_aviant_detailed_fc_state(mavlink_message_t *msg);
 
 #if !defined(CONSTRAINED_FLASH)
 	void handle_message_debug(mavlink_message_t *msg);
@@ -301,6 +303,7 @@ private:
 	uORB::Publication<cellular_status_s>			_cellular_status_pub{ORB_ID(cellular_status)};
 	uORB::Publication<collision_report_s>			_collision_report_pub{ORB_ID(collision_report)};
 	uORB::Publication<differential_pressure_s>		_differential_pressure_pub{ORB_ID(differential_pressure)};
+	uORB::Publication<external_aviant_detailed_fc_state_s>	_external_aviant_detailed_fc_state_pub{ORB_ID(external_aviant_detailed_fc_state)};
 	uORB::Publication<vehicle_status_s>				_external_vehicle_status_pub{ORB_ID(external_vehicle_status)};
 	uORB::Publication<follow_target_s>			_follow_target_pub{ORB_ID(follow_target)};
 	uORB::Publication<gimbal_manager_set_attitude_s>	_gimbal_manager_set_attitude_pub{ORB_ID(gimbal_manager_set_attitude)};

@@ -7,9 +7,9 @@ runtime).
 
 The test script drives the ATS through its MAVLink inputs:
 
-  MAVLink HEARTBEAT       -> external_vehicle_status  (arm / disarm)
-  MAVLink ATTITUDE        -> external_ins_attitude    (FC-timeout clock)
-  MAVLink COMMAND_LONG    -> external_vehicle_status  (DO_PARACHUTE -> TERMINATED)
+  MAVLink AVIANT_DETAILED_FC_STATE -> external_aviant_detailed_fc_state
+      (arm/disarm, system_status, FC-timeout clock)
+  MAVLink COMMAND_LONG -> vehicle_command  (DO_PARACHUTE forwarding)
 
 Deploy detection listens for MAV_CMD_DO_PARACHUTE COMMAND_LONG messages
 forwarded by the MAVLink module from the ATS vehicle_command publications.
@@ -25,6 +25,7 @@ physics.
 import time
 
 import pytest
+from ats_tester import ATSTester
 
 
 def _ats_env(active=1, timeout=150, acc_norm=5.0, roll_ang=80.0,
@@ -45,7 +46,7 @@ def _ats_env(active=1, timeout=150, acc_norm=5.0, roll_ang=80.0,
 def test_no_trigger_when_inactive(tester):
     """No deploy when ATS is inactive (AV_ATS_ACTIVE=0), regardless of conditions."""
 
-    tester.send_fc_heartbeat(armed=True)
+    tester.send_fc_state(armed=True)
     time.sleep(0.2)
 
     assert tester.verify_no_deploy(duration_s=3.0), \
@@ -58,7 +59,7 @@ def test_no_trigger_when_inactive(tester):
 def test_no_trigger_when_disarmed(tester):
     """No deploy when FC is DISARMED, even with all fail flags set."""
 
-    tester.send_fc_heartbeat(armed=False)
+    tester.send_fc_state(armed=False)
     time.sleep(0.2)
 
     assert tester.verify_no_deploy(duration_s=3.0), \
@@ -66,30 +67,41 @@ def test_no_trigger_when_disarmed(tester):
 
 
 @pytest.mark.parametrize('px4', [
-    _ats_env(active=1),
+    _ats_env(active=0),
 ], indirect=True)
-def test_do_parachute_forwarding_while_armed(tester):
-    """MAV_CMD_DO_PARACHUTE is forwarded when armed"""
+def test_armed_terminated_inactive(tester):
+    """MAV_STATE_FLIGHT_TERMINATION causes NO parachute when armed and inactive """
 
     tester.keep_alive(duration_s=1.0, armed=True)
-    tester.send_parachute_command()
+    tester.send_fc_state(armed=True, system_status=ATSTester.MAV_STATE_FLIGHT_TERMINATION)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered when FC is MAV_STATE_FLIGHT_TERMINATION while armed, even though ATS is inactive"
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1),
+], indirect=True)
+def test_armed_terminated(tester):
+    """MAV_STATE_FLIGHT_TERMINATION causes parachute when armed """
+
+    tester.keep_alive(duration_s=1.0, armed=True)
+    tester.send_fc_state(armed=True, system_status=ATSTester.MAV_STATE_FLIGHT_TERMINATION)
 
     assert tester.wait_for_deploy(timeout_s=5.0), \
-        "Deploy NOT triggered when receiving MAV_CMD_DO_PARACHUTE while armed"
+        "Deploy NOT triggered when FC is MAV_STATE_FLIGHT_TERMINATION while armed"
 
 
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1),
 ], indirect=True)
-def test_do_parachute_forwarding_while_disarmed(tester):
-    """MAV_CMD_DO_PARACHUTE is forwarded when disarmed"""
+def test_disarmed_terminated(tester):
+    """MAV_STATE_FLIGHT_TERMINATION causes parachute when disarmed """
 
     tester.keep_alive(duration_s=1.0, armed=False)
-    tester.send_parachute_command()
+    tester.send_fc_state(armed=False, system_status=ATSTester.MAV_STATE_FLIGHT_TERMINATION)
 
     assert tester.wait_for_deploy(timeout_s=5.0), \
-        "Deploy NOT triggered when receiving MAV_CMD_DO_PARACHUTE while disarmed"
-
+        "Deploy NOT triggered when FC is MAV_STATE_FLIGHT_TERMINATION while disarmed"
 
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1, acc_norm=20.0, timeout=150),
@@ -162,8 +174,8 @@ def test_armed_sensor_fail_only_no_deploy(tester):
     """No deploy on ARMED + sensor-fail when fc_timeout has not fired.
 
     Sensor thresholds are set so all sensor-fail flags are true,
-    but fc_timeout is set very high (30 s) and we keep sending ATTITUDE,
-    so the timeout condition is never met.
+    but fc_timeout is set very high (30 s) and we keep sending
+    AVIANT_DETAILED_FC_STATE, so the timeout condition is never met.
     """
 
     tester.keep_alive(duration_s=4.0, armed=True, interval_s=0.02)

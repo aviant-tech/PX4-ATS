@@ -4,51 +4,90 @@ Deploy detection listens for COMMAND_LONG messages on the MAVLink
 connection.  The ATS module publishes vehicle_command to uORB which the
 MAVLink module forwards as MAV_CMD_DO_PARACHUTE (target component 161)
 and MAV_CMD_DO_FLIGHTTERMINATION (target component 1).
+
+The ATS module receives FC state via the AVIANT_DETAILED_FC_STATE custom
+MAVLink message (id 59025), which populates the
+external_aviant_detailed_fc_state uORB topic.
 """
 
 from __future__ import annotations
 
+import struct
 import time
 
 from pymavlink import mavutil
+
+_mavlink_mod = mavutil.mavlink
+
+
+class MAVLink_aviant_detailed_fc_state_message(_mavlink_mod.MAVLink_message):
+    """AVIANT_DETAILED_FC_STATE (msg id 59025) – not in the standard dialect."""
+
+    msgId = 59025
+    id = 59025
+    name = 'AVIANT_DETAILED_FC_STATE'
+    fieldnames = ['time_boot_ms', 'time_unix_usec', 'armed',
+                  'vtol_state', 'system_status']
+    ordered_fieldnames = ['time_unix_usec', 'time_boot_ms', 'armed',
+                          'vtol_state', 'system_status']
+    fieldtypes = ['uint32_t', 'uint64_t', 'uint8_t', 'uint8_t', 'uint8_t']
+    fielddisplays_by_name = {}
+    fieldenums_by_name = {}
+    fieldunits_by_name = {}
+    format = '<QIBBB'
+    native_format = bytearray(b'<QIBBB')
+    orders = [1, 0, 2, 3, 4]
+    lengths = [1, 1, 1, 1, 1]
+    array_lengths = [0, 0, 0, 0, 0]
+    crc_extra = 173
+    unpacker = struct.Struct('<QIBBB')
+    instance_field = None
+    instance_offset = -1
+
+    def __init__(self, time_boot_ms, time_unix_usec, armed,
+                 vtol_state, system_status):
+        _mavlink_mod.MAVLink_message.__init__(self, self.msgId, self.name)
+        self._fieldnames = self.fieldnames
+        self.time_boot_ms = time_boot_ms
+        self.time_unix_usec = time_unix_usec
+        self.armed = armed
+        self.vtol_state = vtol_state
+        self.system_status = system_status
+
+    def pack(self, mav, force_mavlink1=False):
+        return self._pack(
+            mav, self.crc_extra,
+            struct.pack('<QIBBB',
+                        self.time_unix_usec, self.time_boot_ms,
+                        self.armed, self.vtol_state, self.system_status),
+            force_mavlink1=force_mavlink1,
+        )
 
 
 class ATSTester:
     """Drives ATS test scenarios over MAVLink and verifies deploy commands."""
 
-    MAV_AUTOPILOT_PX4 = 12
-    MAV_TYPE_GENERIC = 0
-    MAV_MODE_FLAG_SAFETY_ARMED = 128
+    MAV_STATE_ACTIVE = 4
+    MAV_STATE_CRITICAL = 5
+    MAV_STATE_EMERGENCY = 6
+    MAV_STATE_FLIGHT_TERMINATION = 8
     MAV_CMD_DO_PARACHUTE = 208
-    MAV_CMD_DO_FLIGHTTERMINATION = 185
     PARACHUTE_ACTION_RELEASE = 2
 
     def __init__(self, connection: mavutil.mavlink_connection):
         self.conn = connection
 
-    def send_fc_heartbeat(self, armed: bool) -> None:
-        """Send a HEARTBEAT that looks like it comes from the main FC."""
-        base_mode = self.MAV_MODE_FLAG_SAFETY_ARMED if armed else 0
-        self.conn.mav.heartbeat_send(
-            type=self.MAV_TYPE_GENERIC,
-            autopilot=self.MAV_AUTOPILOT_PX4,
-            base_mode=base_mode,
-            custom_mode=0,
-            system_status=4,  # MAV_STATE_ACTIVE
-        )
-
-    def send_fc_attitude(self, roll: float = 0.0, pitch: float = 0.0,
-                         yaw: float = 0.0) -> None:
-        """Send an ATTITUDE message (populates external_ins_attitude uORB)."""
-        self.conn.mav.attitude_send(
+    def send_fc_state(self, armed: bool = False,
+                      system_status: int = MAV_STATE_ACTIVE) -> None:
+        """Send AVIANT_DETAILED_FC_STATE to update the ATS FC state."""
+        msg = MAVLink_aviant_detailed_fc_state_message(
             time_boot_ms=int(time.monotonic() * 1000) & 0xFFFFFFFF,
-            roll=roll,
-            pitch=pitch,
-            yaw=yaw,
-            rollspeed=0.0,
-            pitchspeed=0.0,
-            yawspeed=0.0,
+            time_unix_usec=int(time.time() * 1e6),
+            armed=1 if armed else 0,
+            vtol_state=0,
+            system_status=system_status,
         )
+        self.conn.mav.send(msg)
 
     def send_parachute_command(self) -> None:
         """Send MAV_CMD_DO_PARACHUTE"""
@@ -63,15 +102,10 @@ class ATSTester:
 
     def keep_alive(self, duration_s: float, armed: bool = True,
                    interval_s: float = 0.05) -> None:
-        """Send attitude + heartbeat at *interval_s* for *duration_s*.
-
-        Attitude is sent BEFORE heartbeat so that fc_timeout is cleared
-        before any arm-state transition is processed by the ATS.
-        """
+        """Send AVIANT_DETAILED_FC_STATE at *interval_s* for *duration_s*."""
         end = time.monotonic() + duration_s
         while time.monotonic() < end:
-            self.send_fc_attitude()
-            self.send_fc_heartbeat(armed)
+            self.send_fc_state(armed=armed)
             time.sleep(interval_s)
 
     def _drain_command_long(self) -> None:

@@ -21,9 +21,6 @@ ATS::init()
 
 	_last_fc_timestamp = hrt_absolute_time();
 
-	_ext_vehicle_status.arming_state = vehicle_status_s::ARMING_STATE_DISARMED;
-	_ext_vehicle_status.failsafe = false;
-
 	ScheduleOnInterval(1_ms);
 
 	return success;
@@ -37,33 +34,22 @@ ATS::Run()
 		return;
 	}
 
-	if (_ext_vehicle_status_sub.update(&_ext_vehicle_status)) {
+	external_aviant_detailed_fc_state_s ext_fc_state{};
 
-		if (_ext_vehicle_status.failsafe) {
+	if (_ext_detailed_fc_state_sub.update(&ext_fc_state)) {
+
+		if (ext_fc_state.system_status == external_aviant_detailed_fc_state_s::SYSTEM_STATUS_FLIGHT_TERMINATION) {
 			_fc_state = FC_STATE::TERMINATED;
 
-		} else if (_ext_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED) {
+		} else if (ext_fc_state.armed) {
 			_fc_state = FC_STATE::ARMED;
 
-		} else if (_ext_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_DISARMED) {
+		} else {
 			_fc_state = FC_STATE::DISARMED;
 		}
 
 		_aviant_ats.fc_state = static_cast<uint8_t>(_fc_state);
-	}
-
-	vehicle_attitude_s external_attitude{};
-	vehicle_attitude_s vehicle_attitude{};
-
-	if (_external_attitude_sub.update(&external_attitude)) {
-
-		matrix::Quatf q(external_attitude.q);
-		matrix::Eulerf euler(q);
-
-		_fc_roll  = math::degrees(euler.phi());
-		_fc_pitch = math::degrees(euler.theta());
-
-		_last_fc_timestamp = external_attitude.timestamp;
+		_last_fc_timestamp = ext_fc_state.timestamp;
 	}
 
 	if (hrt_elapsed_time(&_last_fc_timestamp) > (_params_av_ats_timeout.get() * 1000ULL)) {
@@ -90,6 +76,8 @@ ATS::Run()
 			_aviant_ats.accel_norm_fail = false;
 		}
 	}
+
+	vehicle_attitude_s vehicle_attitude{};
 
 	if (_vehicle_attitude_sub.update(&vehicle_attitude)) {
 
@@ -220,7 +208,6 @@ int ATS::print_status()
 
 	printf("FC State: %s\n", fcStateToString(_fc_state));
 	printf("FC Timestamp: %lld\n", _last_fc_timestamp);
-	printf("FC  Roll: %.2f°, Pitch: %.2f°\n", (double)_fc_roll, (double)_fc_pitch);
 	printf("ATS Roll: %.2f°, Pitch: %.2f°\n", (double)_ats_roll, (double)_ats_pitch);
 	return 0;
 }

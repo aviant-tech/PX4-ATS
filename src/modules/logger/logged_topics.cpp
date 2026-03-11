@@ -49,11 +49,12 @@ void LoggedTopics::add_default_topics()
 	add_topic("adc_report", 0);  // Power loss detection, smaller message than battery_status
 	add_topic("vehicle_attitude", 0);  // Roll/pitch detection, 100Hz
 	add_topic("vehicle_local_position", 0);  // Free-fall detection, 100Hz
-	add_topic("external_ins_attitude", 0);  // Connection loss detection, 10 Hz
+	add_topic("external_aviant_detailed_fc_state", 0);  // Connection loss detection, 30Hz
 	add_topic("vehicle_command");  // Commands, event-driven
 	add_topic("vehicle_command_ack");  // Commands ack, event-driven
 
 	// Useful
+	add_topic("external_ins_attitude", 0);  // For attitude comparison
 	add_topic("aviant_ats", 100);  // ATS status
 	add_topic("battery_status", 100, 0);  // UPS voltage, parachute temperature
 	add_topic("battery_status", 100, 1);  // Power loss detection

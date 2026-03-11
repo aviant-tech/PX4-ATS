@@ -8,10 +8,10 @@
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/aviant_ats.h>
+#include <uORB/topics/external_aviant_detailed_fc_state.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_command.h>
-#include <uORB/topics/vehicle_status.h>
 
 using namespace time_literals;
 
@@ -69,8 +69,6 @@ private:
 
 	aviant_ats_s _aviant_ats{};
 
-	float _fc_roll{0.0f};	// degree
-	float _fc_pitch{0.0f};	// degree
 	hrt_abstime _last_fc_timestamp{0};
 
 	float _ats_roll{0.0f};	// degree
@@ -78,14 +76,11 @@ private:
 
 	bool _publish_vehicle_command_once{false};
 
-	vehicle_status_s _ext_vehicle_status{};
-
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
 
+	uORB::Subscription _ext_detailed_fc_state_sub{ORB_ID(external_aviant_detailed_fc_state)};
 	uORB::Subscription _vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
-	uORB::Subscription _ext_vehicle_status_sub{ORB_ID(external_vehicle_status)};
-	uORB::Subscription _external_attitude_sub{ORB_ID(external_ins_attitude)};
 
 
 	DEFINE_PARAMETERS(
