@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# @name Aviant ATS SITL
+#
+# @type Quadrotor
+# @class Copter
+#
+
+PX4_SIMULATOR=${PX4_SIMULATOR:=sihsim}
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=aviant_ats}
+
+param set-default MAV_TYPE 0
+
+param set-default SENS_EN_GPSSIM 0
+param set-default SENS_EN_BAROSIM 1
+param set-default SENS_EN_MAGSIM 1
+
+param set-default CBRK_SUPPLY_CHK 894281
+param set-default CBRK_IO_SAFETY 22027
+
+# Speed up EKF2 tilt alignment in SIH.
+param set-default EKF2_GRAV_NOISE 0.2
+
+param set SIH_VEHICLE_TYPE 0

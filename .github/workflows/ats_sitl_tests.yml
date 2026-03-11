@@ -1,0 +1,64 @@
+name: ATS SITL Tests
+
+on:
+  push:
+    branches:
+    - 'aviant/ats-1.15'
+  pull_request:
+    branches:
+    - '**'
+
+jobs:
+  ats-sitl:
+    runs-on: ubuntu-latest
+
+    container:
+      image: px4io/px4-dev-simulation-focal:2021-09-08
+      options: --privileged --ulimit core=-1 --security-opt seccomp=unconfined
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        token: ${{ secrets.ACCESS_TOKEN }}
+
+    - name: Prepare ccache timestamp
+      id: ccache_cache_timestamp
+      shell: cmake -P {0}
+      run: |
+        string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+        message("::set-output name=timestamp::${current_date}")
+    - name: ccache cache files
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: ats-sitl-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
+        restore-keys: ats-sitl-ccache-
+    - name: setup ccache
+      run: |
+        mkdir -p ~/.ccache
+        echo "base_dir = ${GITHUB_WORKSPACE}" > ~/.ccache/ccache.conf
+        echo "compression = true" >> ~/.ccache/ccache.conf
+        echo "compression_level = 6" >> ~/.ccache/ccache.conf
+        echo "max_size = 100M" >> ~/.ccache/ccache.conf
+        echo "hash_dir = false" >> ~/.ccache/ccache.conf
+        ccache -s
+        ccache -z
+
+    - name: Build px4_sitl_ats
+      run: DONT_RUN=1 make px4_sitl_ats
+    - name: ccache post-run
+      run: ccache -s
+
+    - name: Install test dependencies
+      run: pip3 install -r test/ats_tests/requirements.txt
+
+    - name: Run ATS SITL tests
+      run: python3 -m pytest test/ats_tests/test_ats.py -v --tb=short
+      timeout-minutes: 10
+
+    - name: Upload px4 binary
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: px4-binary
+        path: build/px4_sitl_ats/bin/px4

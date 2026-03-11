@@ -3,7 +3,7 @@ name: Python CI Checks
 on:
   push:
     branches:
-    - 'aviant/1.15'
+    - 'aviant/ats-1.15'
   pull_request:
     branches:
     - '**'
