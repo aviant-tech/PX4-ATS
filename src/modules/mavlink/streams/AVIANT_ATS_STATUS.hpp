@@ -44,6 +44,8 @@ private:
 
 			if (ats.fc_timeout)        { flags |= FC_TIMEOUT; }
 
+			if (ats.fc_rebooted_while_armed)        { flags |= REBOOTED_WHILE_ARMED; }
+
 			if (ats.parachute_deploy)  { flags |= PARACHUTE_DEPLOY; }
 
 			mavlink_msg_aviant_ats_status_send(

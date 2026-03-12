@@ -69,7 +69,8 @@ private:
 
 	aviant_ats_s _aviant_ats{};
 
-	hrt_abstime _last_fc_timestamp{0};
+	hrt_abstime _last_sign_of_life_from_fc{0};
+	int64_t _fc_boot_time{0};
 
 	float _ats_roll{0.0f};	// degree
 	float _ats_pitch{0.0f};	// degree

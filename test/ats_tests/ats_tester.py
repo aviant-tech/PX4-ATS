@@ -76,12 +76,17 @@ class ATSTester:
 
     def __init__(self, connection: mavutil.mavlink_connection):
         self.conn = connection
+        # Act like it has been on a while, this is necessary for reboot detection
+        self.boot_timestamp_s = time.monotonic() - 15.0
 
     def send_fc_state(self, armed: bool = False,
-                      system_status: int = MAV_STATE_ACTIVE) -> None:
+                      system_status: int = MAV_STATE_ACTIVE,
+                      time_boot_ms: int | None = None) -> None:
         """Send AVIANT_DETAILED_FC_STATE to update the ATS FC state."""
+        if time_boot_ms is None:
+            time_boot_ms = int((time.monotonic() - self.boot_timestamp_s) * 1000)
         msg = MAVLink_aviant_detailed_fc_state_message(
-            time_boot_ms=int(time.monotonic() * 1000) & 0xFFFFFFFF,
+            time_boot_ms=time_boot_ms,
             time_unix_usec=int(time.time() * 1e6),
             armed=1 if armed else 0,
             vtol_state=0,
@@ -107,6 +112,17 @@ class ATSTester:
         while time.monotonic() < end:
             self.send_fc_state(armed=armed)
             time.sleep(interval_s)
+
+    def simulate_fc_reboot(self) -> None:
+        """Simulate an FC reboot by resetting time_boot_ms to a small value.
+
+        The ATS detects a reboot when time_boot_ms drops by more than 10 s
+        compared to the previous message.  Resetting boot_timestamp_s makes
+        subsequent send_fc_state() calls produce small time_boot_ms values
+        automatically.
+        """
+        self.boot_timestamp_s = time.monotonic()
+        self.send_fc_state(armed=False)
 
     def _drain_command_long(self) -> None:
         """Discard any stale COMMAND_LONG messages in the receive buffer."""

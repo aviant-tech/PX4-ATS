@@ -1,4 +1,5 @@
 #include "ATS.hpp"
+#include "drivers/drv_hrt.h"
 #include <math.h>
 
 using namespace time_literals;
@@ -19,7 +20,7 @@ ATS::init()
 {
 	bool success = true;
 
-	_last_fc_timestamp = hrt_absolute_time();
+	_last_sign_of_life_from_fc = hrt_absolute_time();
 
 	ScheduleOnInterval(1_ms);
 
@@ -38,6 +39,30 @@ ATS::Run()
 
 	if (_ext_detailed_fc_state_sub.update(&ext_fc_state)) {
 
+		_last_sign_of_life_from_fc = ext_fc_state.timestamp;
+
+		const int64_t fc_timestamp = static_cast<int64_t>(ext_fc_state.time_boot_ms * 1000);
+		const int64_t timestamp = static_cast<int64_t>(hrt_absolute_time());
+		const int64_t measured_fc_boot_time = timestamp - fc_timestamp;
+
+		const int64_t change_in_boot_time = math::abs_t(measured_fc_boot_time - _fc_boot_time);
+
+		constexpr int64_t reboot_change_threshold = 10_s;
+
+		if (change_in_boot_time >= reboot_change_threshold) {
+			if (static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED) {
+				PX4_WARN("Reboot and armed (dt = %ds)", static_cast<int>(change_in_boot_time / 1_s));
+				_aviant_ats.fc_rebooted_while_armed = true;
+
+			} else {
+				PX4_WARN("Reboot but not armed (dt = %ds)", static_cast<int>(change_in_boot_time / 1_s));
+			}
+
+			// Never reset, this will only be true for one sample, but we want it to latch
+		}
+
+		_fc_boot_time = measured_fc_boot_time;
+
 		if (ext_fc_state.system_status == external_aviant_detailed_fc_state_s::SYSTEM_STATUS_FLIGHT_TERMINATION) {
 			_fc_state = FC_STATE::TERMINATED;
 
@@ -49,10 +74,9 @@ ATS::Run()
 		}
 
 		_aviant_ats.fc_state = static_cast<uint8_t>(_fc_state);
-		_last_fc_timestamp = ext_fc_state.timestamp;
 	}
 
-	if (hrt_elapsed_time(&_last_fc_timestamp) > (_params_av_ats_timeout.get() * 1000ULL)) {
+	if (hrt_elapsed_time(&_last_sign_of_life_from_fc) > (_params_av_ats_timeout.get() * 1000ULL)) {
 		_aviant_ats.fc_timeout = true;
 
 	} else {
@@ -87,45 +111,29 @@ ATS::Run()
 		_ats_roll  = math::degrees(euler.phi());
 		_ats_pitch = math::degrees(euler.theta());
 
-		if (fabsf(_ats_roll) > _params_av_ats_roll_ang.get()) {
-			_aviant_ats.roll_fail = true;
-
-		} else {
-			_aviant_ats.roll_fail = false;
-		}
-
-		if (fabsf(_ats_pitch) > _params_av_ats_pitch_ang.get()) {
-			_aviant_ats.pitch_fail = true;
-
-		} else {
-			_aviant_ats.pitch_fail = false;
-		}
+		_aviant_ats.roll_fail = (fabsf(_ats_roll) > _params_av_ats_roll_ang.get());
+		_aviant_ats.pitch_fail = (fabsf(_ats_pitch) > _params_av_ats_pitch_ang.get());
 	}
 
 	const bool ats_active = static_cast<bool>(_params_av_ats_active.get());
 
 	if (ats_active) {
-		switch (_fc_state) {
-		case FC_STATE::ARMED:
+		const bool failure_detected = (
+						      _aviant_ats.roll_fail
+						      || _aviant_ats.pitch_fail
+						      || _aviant_ats.accel_norm_fail
+					      );
 
-			if (_aviant_ats.fc_timeout &&
-			    (_aviant_ats.accel_norm_fail || _aviant_ats.roll_fail || _aviant_ats.pitch_fail)
-			   ) {
-				_aviant_ats.parachute_deploy = true;
-			}
+		const bool should_trigger_on_failure = (
+				(_fc_state == FC_STATE::ARMED && _aviant_ats.fc_timeout)
+				|| _aviant_ats.fc_rebooted_while_armed
+						       );
 
-			break;
-
-		case FC_STATE::TERMINATED:
+		if (
+			(should_trigger_on_failure && failure_detected)
+			|| _fc_state == FC_STATE::TERMINATED
+		) {
 			_aviant_ats.parachute_deploy = true;
-			break;
-
-		case FC_STATE::DISARMED:
-			// Do nothing. No recovery is available at this time. A reboot is required.
-			break;
-
-		default:
-			break;
 		}
 	}
 
@@ -207,7 +215,7 @@ int ATS::print_status()
 	PX4_INFO("Running\n");
 
 	printf("FC State: %s\n", fcStateToString(_fc_state));
-	printf("FC Timestamp: %lld\n", _last_fc_timestamp);
+	printf("FC Timestamp: %lld\n", _last_sign_of_life_from_fc);
 	printf("ATS Roll: %.2f°, Pitch: %.2f°\n", (double)_ats_roll, (double)_ats_pitch);
 	return 0;
 }
