@@ -40,13 +40,13 @@ public:
 	void send_parachute_command();
 	void send_flighttermination_command();
 
-private:
-
 	enum class FC_STATE {
 		DISARMED	= 0,
 		ARMED		= 1,
 		TERMINATED	= 2 //FAILSAFE
 	} _fc_state{FC_STATE::DISARMED};
+
+private:
 
 	static inline const char *fcStateToString(FC_STATE fc_state)
 	{

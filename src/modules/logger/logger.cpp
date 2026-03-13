@@ -46,7 +46,6 @@
 
 #include <uORB/uORBMessageFields.hpp>
 #include <uORB/Publication.hpp>
-#include <uORB/topics/aviant_ats.h>
 #include <uORB/topics/uORBTopics.hpp>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_command_ack.h>
@@ -67,6 +66,7 @@
 #include <replay/definitions.hpp>
 #include <version/version.h>
 #include <component_information/checksums.h>
+#include <modules/aviant/ats/ATS.hpp>
 
 //#define DBGPRINT //write status output every few seconds
 
@@ -1122,6 +1122,7 @@ bool Logger::start_stop_logging()
 
 	} else if (_log_mode != LogMode::boot_until_shutdown) {
 		// arming-based logging
+		/* not vehicle status
 		vehicle_status_s vehicle_status;
 
 		if (_vehicle_status_sub.update(&vehicle_status)) {
@@ -1130,19 +1131,19 @@ bool Logger::start_stop_logging()
 					(_prev_file_log_start_state && _log_mode == LogMode::arm_until_shutdown);
 			updated = true;
 		}
+		*/
 
-// Uncomment to stop logging when the ATS parachute is deployed.
-// Otherwise, logging will continue until an external DISARM command is received.
 
-//		//Stop logging after parachute deployment, unless logging is configured to run until shutdown.
-//		uORB::Subscription aviant_ats_sub{ORB_ID(aviant_ats)};
-//		aviant_ats_s aviant_ats{};
-//
-//		if (aviant_ats_sub.update(&aviant_ats) && aviant_ats.parachute_deploy) {
-//
-//			desired_state = false;
-//			updated = true;
-//		}
+		aviant_ats_s aviant_ats{};
+
+		if (_aviant_ats_sub.update(&aviant_ats)) {
+
+			desired_state = (
+						static_cast<ATS::FC_STATE>(aviant_ats.fc_state) != ATS::FC_STATE::DISARMED
+						|| aviant_ats.fc_rebooted_while_armed
+					);
+			updated = true;
+		}
 	}
 
 	desired_state = desired_state || _manually_logging_override;
