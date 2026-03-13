@@ -9,4 +9,5 @@ bool roll_fail
 bool pitch_fail
 bool fc_timeout
 bool fc_rebooted_while_armed
+bool voltage_fail
 bool parachute_deploy

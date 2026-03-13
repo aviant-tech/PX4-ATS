@@ -7,6 +7,7 @@
 
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
+#include <uORB/topics/ats_voltage_measurements.h>
 #include <uORB/topics/aviant_ats.h>
 #include <uORB/topics/external_aviant_detailed_fc_state.h>
 #include <uORB/topics/vehicle_acceleration.h>
@@ -79,6 +80,7 @@ private:
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
 
+	uORB::Subscription _ats_voltage_sub{ORB_ID(ats_voltage_measurements)};
 	uORB::Subscription _ext_detailed_fc_state_sub{ORB_ID(external_aviant_detailed_fc_state)};
 	uORB::Subscription _vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
@@ -90,6 +92,9 @@ private:
 		(ParamFloat<px4::params::AV_ATS_ROLL_ANG>)  _params_av_ats_roll_ang,
 		(ParamFloat<px4::params::AV_ATS_PITCH_ANG>) _params_av_ats_pitch_ang,
 		(ParamInt<px4::params::AV_ATS_ACTIVE>)      _params_av_ats_active,
+		(ParamFloat<px4::params::AV_ATS_MP_LOWV>)   _params_av_ats_mp_lowv,
+		(ParamFloat<px4::params::AV_ATS_UPS_LOWV>)  _params_av_ats_ups_lowv,
+		(ParamInt<px4::params::AV_ATS_V_EN>)        _params_av_ats_v_en,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

@@ -29,22 +29,42 @@ from ats_tester import ATSTester
 
 
 def _ats_env(active=1, timeout=150, acc_norm=5.0, roll_ang=80.0,
-             pitch_ang=60.0):
+             pitch_ang=60.0, v_en=None, mp_lowv=None, ups_lowv=None,
+             v_mp1_sim=None, v_mp2_sim=None, v_ups_sim=None):
     """Build env-var dict consumed by the .post airframe script."""
-    return {
+    env = {
         'ATS_PARAM_ACTIVE':    str(active),
         'ATS_PARAM_TIMEOUT':   str(timeout),
         'ATS_PARAM_ACC_NORM':  str(acc_norm),
         'ATS_PARAM_ROLL_ANG':  str(roll_ang),
         'ATS_PARAM_PITCH_ANG': str(pitch_ang),
     }
+    if v_en is not None:
+        env['ATS_PARAM_V_EN'] = str(v_en)
+    if mp_lowv is not None:
+        env['ATS_PARAM_MP_LOWV'] = str(mp_lowv)
+    if ups_lowv is not None:
+        env['ATS_PARAM_UPS_LOWV'] = str(ups_lowv)
+    if v_mp1_sim is not None:
+        env['ATS_PARAM_V_MP1_SIM'] = str(v_mp1_sim)
+    if v_mp2_sim is not None:
+        env['ATS_PARAM_V_MP2_SIM'] = str(v_mp2_sim)
+    if v_ups_sim is not None:
+        env['ATS_PARAM_V_UPS_SIM'] = str(v_ups_sim)
+    return env
 
 
 @pytest.mark.parametrize('px4', [
-    _ats_env(active=0, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0),
+    _ats_env(active=0, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
+             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
+             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
 ], indirect=True)
 def test_no_trigger_when_inactive(tester: ATSTester):
-    """No deploy when ATS is inactive (AV_ATS_ACTIVE=0), regardless of conditions."""
+    """No deploy when ATS is inactive (AV_ATS_ACTIVE=0), regardless of conditions.
+
+    All failure conditions are met: sensor thresholds exceeded, voltage
+    enabled with both main powers low and UPS healthy.
+    """
 
     tester.send_fc_state(armed=True)
     time.sleep(0.2)
@@ -54,10 +74,16 @@ def test_no_trigger_when_inactive(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0),
+    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
+             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
+             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
 ], indirect=True)
 def test_no_trigger_when_disarmed(tester: ATSTester):
-    """No deploy when FC is DISARMED, even with all fail flags set."""
+    """No deploy when FC is DISARMED, even with all fail flags set.
+
+    All failure conditions are met: sensor thresholds exceeded, voltage
+    enabled with both main powers low and UPS healthy.
+    """
 
     tester.send_fc_state(armed=False)
     time.sleep(0.2)
@@ -257,7 +283,6 @@ def test_fc_reboot_small_drop_no_detect(tester: ATSTester):
 
     assert tester.verify_no_deploy(duration_s=3.0), \
         "Deploy triggered on time_boot_ms drop smaller than 10 s threshold"
-
 
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1, v_en=1, mp_lowv=15.0, ups_lowv=4.0,

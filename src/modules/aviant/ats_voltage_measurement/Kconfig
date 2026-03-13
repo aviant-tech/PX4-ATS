@@ -1,0 +1,5 @@
+menuconfig MODULES_AVIANT_ATS_VOLTAGE_MEASUREMENT
+	bool "Aviant ATS Voltage Measurement"
+	default n
+	help
+		Enable Aviant ATS voltage measurement module

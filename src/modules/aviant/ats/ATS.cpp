@@ -115,26 +115,51 @@ ATS::Run()
 		_aviant_ats.pitch_fail = (fabsf(_ats_pitch) > _params_av_ats_pitch_ang.get());
 	}
 
+	ats_voltage_measurements_s voltage{};
+
+	if (_ats_voltage_sub.update(&voltage)) {
+		const bool main_power_low = (voltage.main_power1_v < _params_av_ats_mp_lowv.get())
+					    && (voltage.main_power2_v < _params_av_ats_mp_lowv.get());
+		const bool ups_healthy = voltage.ats_ups_v > _params_av_ats_ups_lowv.get();
+
+		_aviant_ats.voltage_fail = main_power_low && ups_healthy;
+	}
+
 	const bool ats_active = static_cast<bool>(_params_av_ats_active.get());
 
 	if (ats_active) {
-		const bool failure_detected = (
-						      _aviant_ats.roll_fail
-						      || _aviant_ats.pitch_fail
-						      || _aviant_ats.accel_norm_fail
-					      );
-
-		const bool should_trigger_on_failure = (
-				(_fc_state == FC_STATE::ARMED && _aviant_ats.fc_timeout)
-				|| _aviant_ats.fc_rebooted_while_armed
-						       );
-
+		// Note: Please use only variables from the _aviant_ats message to deploy the parachute,
+		// Being able to read the entire state from one ulog sample makes troubleshooting easier
 		if (
-			(should_trigger_on_failure && failure_detected)
-			|| _fc_state == FC_STATE::TERMINATED
+			(
+				(static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED && _aviant_ats.fc_timeout)
+				|| _aviant_ats.fc_rebooted_while_armed
+			)
+			&& (
+				_aviant_ats.roll_fail
+				|| _aviant_ats.pitch_fail
+				|| _aviant_ats.accel_norm_fail
+			)
 		) {
+			PX4_WARN("ATS: Control failure detected! Will deploy parachute");
 			_aviant_ats.parachute_deploy = true;
 		}
+
+		if (
+			_params_av_ats_v_en.get()
+			&& static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED
+			&& _aviant_ats.voltage_fail
+		) {
+			PX4_WARN("ATS: Voltage failure detected! Will deploy parachute");
+			_aviant_ats.parachute_deploy = true;
+		}
+
+		if (static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::TERMINATED) {
+			PX4_WARN("ATS: Flight controller is terminated! Will deploy parachute");
+			_aviant_ats.parachute_deploy = true;
+
+		}
+
 	}
 
 	if (!_publish_vehicle_command_once && _aviant_ats.parachute_deploy) {

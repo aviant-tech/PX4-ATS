@@ -124,6 +124,16 @@ class ATSTester:
         self.boot_timestamp_s = time.monotonic()
         self.send_fc_state(armed=False)
 
+    def set_param(self, param_id: str, value: float) -> None:
+        """Set a PX4 parameter via MAVLink PARAM_SET."""
+        self.conn.mav.param_set_send(
+            target_system=1,
+            target_component=1,
+            param_id=param_id.encode('utf-8'),
+            param_value=value,
+            param_type=_mavlink_mod.MAV_PARAM_TYPE_REAL32,
+        )
+
     def _drain_command_long(self) -> None:
         """Discard any stale COMMAND_LONG messages in the receive buffer."""
         while True:

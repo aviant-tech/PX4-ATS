@@ -520,6 +520,7 @@ else
 	fi
 
 	aviant_ats start
+	ats_voltage_measurement start
 
 	#
 	# Optional board supplied extras: rc.board_extras

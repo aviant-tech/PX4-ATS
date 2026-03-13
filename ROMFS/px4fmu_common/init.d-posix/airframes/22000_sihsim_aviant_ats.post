@@ -8,4 +8,13 @@
 [ -n "$ATS_PARAM_ROLL_ANG" ]  && param set AV_ATS_ROLL_ANG  $ATS_PARAM_ROLL_ANG
 [ -n "$ATS_PARAM_PITCH_ANG" ] && param set AV_ATS_PITCH_ANG $ATS_PARAM_PITCH_ANG
 
+[ -n "$ATS_PARAM_V_EN" ]      && param set AV_ATS_V_EN     $ATS_PARAM_V_EN
+[ -n "$ATS_PARAM_MP_LOWV" ]   && param set AV_ATS_MP_LOWV  $ATS_PARAM_MP_LOWV
+[ -n "$ATS_PARAM_UPS_LOWV" ]  && param set AV_ATS_UPS_LOWV $ATS_PARAM_UPS_LOWV
+
+[ -n "$ATS_PARAM_V_MP1_SIM" ] && param set AV_V_MP1_SIM $ATS_PARAM_V_MP1_SIM
+[ -n "$ATS_PARAM_V_MP2_SIM" ] && param set AV_V_MP2_SIM $ATS_PARAM_V_MP2_SIM
+[ -n "$ATS_PARAM_V_UPS_SIM" ] && param set AV_V_UPS_SIM $ATS_PARAM_V_UPS_SIM
+
 aviant_ats start
+ats_voltage_measurement start
