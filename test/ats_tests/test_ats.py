@@ -54,60 +54,13 @@ def _ats_env(active=1, timeout=150, acc_norm=5.0, roll_ang=80.0,
     return env
 
 
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=0, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
-             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
-             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
-], indirect=True)
-def test_no_trigger_when_inactive(tester: ATSTester):
-    """No deploy when ATS is inactive (AV_ATS_ACTIVE=0), regardless of conditions.
+# ── deploy ────────────────────────────────────────────────────────────
 
-    All failure conditions are met: sensor thresholds exceeded, voltage
-    enabled with both main powers low and UPS healthy.
-    """
-
-    tester.send_fc_state(armed=True)
-    time.sleep(0.2)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered even though ATS is inactive"
-
-
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
-             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
-             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
-], indirect=True)
-def test_no_trigger_when_disarmed(tester: ATSTester):
-    """No deploy when FC is DISARMED, even with all fail flags set.
-
-    All failure conditions are met: sensor thresholds exceeded, voltage
-    enabled with both main powers low and UPS healthy.
-    """
-
-    tester.send_fc_state(armed=False)
-    time.sleep(0.2)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered while FC is DISARMED"
-
-
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=0),
-], indirect=True)
-def test_armed_terminated_inactive(tester: ATSTester):
-    """MAV_STATE_FLIGHT_TERMINATION causes NO parachute when armed and inactive """
-
-    tester.keep_alive(duration_s=1.0, armed=True)
-    tester.send_fc_state(armed=True, system_status=ATSTester.MAV_STATE_FLIGHT_TERMINATION)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered when FC is MAV_STATE_FLIGHT_TERMINATION while armed, even though ATS is inactive"
 
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1),
 ], indirect=True)
-def test_armed_terminated(tester: ATSTester):
+def test_deploy_armed_terminated(tester: ATSTester):
     """MAV_STATE_FLIGHT_TERMINATION causes parachute when armed """
 
     tester.keep_alive(duration_s=1.0, armed=True)
@@ -120,7 +73,7 @@ def test_armed_terminated(tester: ATSTester):
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1),
 ], indirect=True)
-def test_disarmed_terminated(tester: ATSTester):
+def test_deploy_disarmed_terminated(tester: ATSTester):
     """MAV_STATE_FLIGHT_TERMINATION causes parachute when disarmed """
 
     tester.keep_alive(duration_s=1.0, armed=False)
@@ -129,10 +82,11 @@ def test_disarmed_terminated(tester: ATSTester):
     assert tester.wait_for_deploy(timeout_s=5.0), \
         "Deploy NOT triggered when FC is MAV_STATE_FLIGHT_TERMINATION while disarmed"
 
+
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1, acc_norm=20.0, timeout=150),
 ], indirect=True)
-def test_armed_timeout_plus_accel_fail(tester: ATSTester):
+def test_deploy_timeout_accel_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + accel_norm_fail (threshold > gravity)."""
 
     tester.keep_alive(duration_s=1.0, armed=True)
@@ -145,7 +99,7 @@ def test_armed_timeout_plus_accel_fail(tester: ATSTester):
     _ats_env(active=1, acc_norm=5.0, roll_ang=0.0, pitch_ang=80.0,
              timeout=150),
 ], indirect=True)
-def test_armed_timeout_plus_roll_fail(tester: ATSTester):
+def test_deploy_timeout_roll_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + roll_fail (threshold = 0 deg).
 
     EKF2 publishes vehicle_attitude at near-level orientation in SIH.
@@ -162,7 +116,7 @@ def test_armed_timeout_plus_roll_fail(tester: ATSTester):
     _ats_env(active=1, acc_norm=5.0, roll_ang=80.0, pitch_ang=0.0,
              timeout=150),
 ], indirect=True)
-def test_armed_timeout_plus_pitch_fail(tester: ATSTester):
+def test_deploy_timeout_pitch_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + pitch_fail (threshold = 0 deg).
 
     EKF2 publishes vehicle_attitude at near-level orientation in SIH.
@@ -176,44 +130,9 @@ def test_armed_timeout_plus_pitch_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=5.0, roll_ang=80.0, pitch_ang=60.0,
-             timeout=150),
-], indirect=True)
-def test_armed_timeout_only_no_deploy(tester: ATSTester):
-    """No deploy on ARMED + fc_timeout when no sensor-fail condition is met.
-
-    Thresholds: accel_norm=5 (gravity 9.81 > 5 -> pass),
-    roll=80 deg (0 < 80 -> pass), pitch=60 deg (0 < 60 -> pass).
-    """
-
-    tester.keep_alive(duration_s=1.0, armed=True)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered with timeout only (no sensor fail)"
-
-
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
-             timeout=30000),
-], indirect=True)
-def test_armed_sensor_fail_only_no_deploy(tester: ATSTester):
-    """No deploy on ARMED + sensor-fail when fc_timeout has not fired.
-
-    Sensor thresholds are set so all sensor-fail flags are true,
-    but fc_timeout is set very high (30 s) and we keep sending
-    AVIANT_DETAILED_FC_STATE, so the timeout condition is never met.
-    """
-
-    tester.keep_alive(duration_s=4.0, armed=True, interval_s=0.02)
-
-    assert tester.verify_no_deploy(duration_s=0.5), \
-        "Deploy triggered with sensor fail only (no timeout)"
-
-
-@pytest.mark.parametrize('px4', [
     _ats_env(active=1, acc_norm=20.0),
 ], indirect=True)
-def test_fc_reboot_while_armed_with_failure(tester: ATSTester):
+def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
     """Deploy when FC reboots while armed and a sensor-fail condition is met.
 
     Reboot is detected when time_boot_ms drops by more than 10 s.
@@ -232,63 +151,10 @@ def test_fc_reboot_while_armed_with_failure(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [
-    _ats_env(active=1),
-], indirect=True)
-def test_fc_reboot_while_armed_no_deploy(tester: ATSTester):
-    """No deploy when FC reboots while armed but no sensor-fail condition is met.
-
-    Reboot is detected (time_boot_ms drops > 10 s), but default sensor
-    thresholds are lenient (acc_norm=5, roll=80, pitch=60) so no sensor
-    fail flag is set.  fc_rebooted_while_armed alone is not enough.
-    """
-
-    tester.keep_alive(duration_s=1.0, armed=True)
-    tester.simulate_fc_reboot()
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered on FC reboot while armed with no failure"
-
-
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=20.0),
-], indirect=True)
-def test_fc_reboot_while_disarmed_no_deploy(tester: ATSTester):
-    """No deploy when FC reboots while disarmed, even with a sensor failure.
-
-    time_boot_ms drops > 10 s so the reboot is detected, but the FC was
-    disarmed before the reboot so fc_rebooted_while_armed stays false.
-    """
-
-    tester.keep_alive(duration_s=1.0, armed=False)
-    tester.simulate_fc_reboot()
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered on FC reboot while disarmed"
-
-@pytest.mark.parametrize('px4', [
-    _ats_env(active=1, acc_norm=20.0),
-], indirect=True)
-def test_fc_reboot_small_drop_no_detect(tester: ATSTester):
-    """No deploy when time_boot_ms drops by less than the 10 s threshold.
-
-    A 5 s backward jump in time_boot_ms must NOT be treated as a reboot.
-    Even with a sensor failure and the FC armed, the deploy must not fire
-    because fc_rebooted_while_armed should not be set.
-    """
-
-    tester.keep_alive(duration_s=1.0, armed=True)
-
-    current_boot_ms = int((time.monotonic() - tester.boot_timestamp_s) * 1000)
-    tester.send_fc_state(armed=False, time_boot_ms=current_boot_ms - 5000)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Deploy triggered on time_boot_ms drop smaller than 10 s threshold"
-
-@pytest.mark.parametrize('px4', [
     _ats_env(active=1, v_en=1, mp_lowv=15.0, ups_lowv=4.0,
              v_mp1_sim=50.0, v_mp2_sim=50.0, v_ups_sim=5.0),
 ], indirect=True)
-def test_main_power_low_ups_healthy_triggers_deploy(tester: ATSTester):
+def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     """Deploy when both main powers drop below threshold while UPS stays healthy.
 
     Initial state: MP1=50V, MP2=50V, UPS=5V (all normal).
@@ -306,11 +172,155 @@ def test_main_power_low_ups_healthy_triggers_deploy(tester: ATSTester):
         "Deploy NOT triggered when both main powers low and UPS healthy"
 
 
+# ── nodeploy ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=0, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
+             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
+             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
+], indirect=True)
+def test_nodeploy_inactive(tester: ATSTester):
+    """No deploy when ATS is inactive (AV_ATS_ACTIVE=0), regardless of conditions.
+
+    All failure conditions are met: sensor thresholds exceeded, voltage
+    enabled with both main powers low and UPS healthy.
+    """
+
+    tester.send_fc_state(armed=True)
+    time.sleep(0.2)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered even though ATS is inactive"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
+             v_en=1, mp_lowv=15.0, ups_lowv=4.0,
+             v_mp1_sim=10.0, v_mp2_sim=10.0, v_ups_sim=5.0),
+], indirect=True)
+def test_nodeploy_disarmed(tester: ATSTester):
+    """No deploy when FC is DISARMED, even with all fail flags set.
+
+    All failure conditions are met: sensor thresholds exceeded, voltage
+    enabled with both main powers low and UPS healthy.
+    """
+
+    tester.send_fc_state(armed=False)
+    time.sleep(0.2)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered while FC is DISARMED"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=0),
+], indirect=True)
+def test_nodeploy_terminated_inactive(tester: ATSTester):
+    """MAV_STATE_FLIGHT_TERMINATION causes NO parachute when armed and inactive """
+
+    tester.keep_alive(duration_s=1.0, armed=True)
+    tester.send_fc_state(armed=True, system_status=ATSTester.MAV_STATE_FLIGHT_TERMINATION)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered when FC is MAV_STATE_FLIGHT_TERMINATION while armed, even though ATS is inactive"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1, acc_norm=5.0, roll_ang=80.0, pitch_ang=60.0,
+             timeout=150),
+], indirect=True)
+def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
+    """No deploy on ARMED + fc_timeout when no sensor-fail condition is met.
+
+    Thresholds: accel_norm=5 (gravity 9.81 > 5 -> pass),
+    roll=80 deg (0 < 80 -> pass), pitch=60 deg (0 < 60 -> pass).
+    """
+
+    tester.keep_alive(duration_s=1.0, armed=True)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered with timeout only (no sensor fail)"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1, acc_norm=20.0, roll_ang=0.0, pitch_ang=0.0,
+             timeout=30000),
+], indirect=True)
+def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
+    """No deploy on ARMED + sensor-fail when fc_timeout has not fired.
+
+    Sensor thresholds are set so all sensor-fail flags are true,
+    but fc_timeout is set very high (30 s) and we keep sending
+    AVIANT_DETAILED_FC_STATE, so the timeout condition is never met.
+    """
+
+    tester.keep_alive(duration_s=4.0, armed=True, interval_s=0.02)
+
+    assert tester.verify_no_deploy(duration_s=0.5), \
+        "Deploy triggered with sensor fail only (no timeout)"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1),
+], indirect=True)
+def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
+    """No deploy when FC reboots while armed but no sensor-fail condition is met.
+
+    Reboot is detected (time_boot_ms drops > 10 s), but default sensor
+    thresholds are lenient (acc_norm=5, roll=80, pitch=60) so no sensor
+    fail flag is set.  fc_rebooted_while_armed alone is not enough.
+    """
+
+    tester.keep_alive(duration_s=1.0, armed=True)
+    tester.simulate_fc_reboot()
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered on FC reboot while armed with no failure"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1, acc_norm=20.0),
+], indirect=True)
+def test_nodeploy_reboot_disarmed(tester: ATSTester):
+    """No deploy when FC reboots while disarmed, even with a sensor failure.
+
+    time_boot_ms drops > 10 s so the reboot is detected, but the FC was
+    disarmed before the reboot so fc_rebooted_while_armed stays false.
+    """
+
+    tester.keep_alive(duration_s=1.0, armed=False)
+    tester.simulate_fc_reboot()
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered on FC reboot while disarmed"
+
+
+@pytest.mark.parametrize('px4', [
+    _ats_env(active=1, acc_norm=20.0),
+], indirect=True)
+def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
+    """No deploy when time_boot_ms drops by less than the 10 s threshold.
+
+    A 5 s backward jump in time_boot_ms must NOT be treated as a reboot.
+    Even with a sensor failure and the FC armed, the deploy must not fire
+    because fc_rebooted_while_armed should not be set.
+    """
+
+    tester.keep_alive(duration_s=1.0, armed=True)
+
+    current_boot_ms = int((time.monotonic() - tester.boot_timestamp_s) * 1000)
+    tester.send_fc_state(armed=False, time_boot_ms=current_boot_ms - 5000)
+
+    assert tester.verify_no_deploy(duration_s=3.0), \
+        "Deploy triggered on time_boot_ms drop smaller than 10 s threshold"
+
+
 @pytest.mark.parametrize('px4', [
     _ats_env(active=1, v_en=1, mp_lowv=15.0, ups_lowv=4.0,
              v_mp1_sim=50.0, v_mp2_sim=50.0, v_ups_sim=5.0),
 ], indirect=True)
-def test_all_voltages_low_no_deploy(tester: ATSTester):
+def test_nodeploy_voltage_main_low_ups_unhealthy(tester: ATSTester):
     """No deploy when all voltages (including UPS) drop simultaneously.
 
     If the UPS voltage also drops below its threshold (<=4V), the voltage
