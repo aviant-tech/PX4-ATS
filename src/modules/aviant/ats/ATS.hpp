@@ -41,9 +41,9 @@ public:
 	void send_flighttermination_command();
 
 	enum class FC_STATE {
-		DISARMED	= 0,
-		ARMED		= 1,
-		TERMINATED	= 2 //FAILSAFE
+		DISARMED	= aviant_ats_s::FC_STATE_DISARMED,
+		ARMED		= aviant_ats_s::FC_STATE_ARMED,
+		TERMINATED	= aviant_ats_s::FC_STATE_TERMINATED
 	} _fc_state{FC_STATE::DISARMED};
 
 private:

@@ -66,7 +66,6 @@
 #include <replay/definitions.hpp>
 #include <version/version.h>
 #include <component_information/checksums.h>
-#include <modules/aviant/ats/ATS.hpp>
 
 //#define DBGPRINT //write status output every few seconds
 
@@ -1139,7 +1138,7 @@ bool Logger::start_stop_logging()
 		if (_aviant_ats_sub.update(&aviant_ats)) {
 
 			desired_state = (
-						static_cast<ATS::FC_STATE>(aviant_ats.fc_state) != ATS::FC_STATE::DISARMED
+						aviant_ats.fc_state != aviant_ats_s::FC_STATE_DISARMED
 						|| aviant_ats.fc_rebooted_while_armed
 					);
 			updated = true;
