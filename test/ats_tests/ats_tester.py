@@ -1,5 +1,10 @@
 """Helper class wrapping pymavlink with ATS-specific MAVLink interactions.
 
+A background thread continuously sends AVIANT_DETAILED_FC_STATE at ~20 Hz
+to emulate the flight controller.  Tests control the emulated FC through
+set_armed() and set_system_status(), and can simulate FC silence via
+pause_sending().
+
 Deploy detection listens for COMMAND_LONG messages on the MAVLink
 connection.  The ATS module publishes vehicle_command to uORB which the
 MAVLink module forwards as MAV_CMD_DO_PARACHUTE (target component 161)
@@ -13,6 +18,7 @@ external_aviant_detailed_fc_state uORB topic.
 from __future__ import annotations
 
 import struct
+import threading
 import time
 
 from pymavlink import mavutil
@@ -65,7 +71,14 @@ class MAVLink_aviant_detailed_fc_state_message(_mavlink_mod.MAVLink_message):
 
 
 class ATSTester:
-    """Drives ATS test scenarios over MAVLink and verifies deploy commands."""
+    """Drives ATS test scenarios over MAVLink and verifies deploy commands.
+
+    A background thread continuously sends AVIANT_DETAILED_FC_STATE at
+    ~20 Hz.  Tests mutate the emulated FC state through set_armed() and
+    set_system_status(); the background thread picks up the new values on
+    the next iteration.  pause_sending() / resume_sending() simulate the
+    FC going silent or coming back.
+    """
 
     MAV_STATE_ACTIVE = 4
     MAV_STATE_CRITICAL = 5
@@ -74,65 +87,97 @@ class ATSTester:
     MAV_CMD_DO_PARACHUTE = 208
     PARACHUTE_ACTION_RELEASE = 2
 
+    _SEND_INTERVAL_S = 0.05
+
     def __init__(self, connection: mavutil.mavlink_connection):
         self.conn = connection
-        # Act like it has been on a while, this is necessary for reboot detection
+        # We act like the FC booted a while ago, this is necessary for reboot detection
         self.boot_timestamp_s = time.monotonic() - 15.0
 
-    def send_fc_state(self, armed: bool = False,
-                      system_status: int = MAV_STATE_ACTIVE,
-                      time_boot_ms: int | None = None) -> None:
-        """Send AVIANT_DETAILED_FC_STATE to update the ATS FC state."""
-        if time_boot_ms is None:
-            time_boot_ms = int((time.monotonic() - self.boot_timestamp_s) * 1000)
+        self._lock = threading.Lock()
+        self._armed = False
+        self._system_status = self.MAV_STATE_ACTIVE
+        self._sending = True
+
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._send_loop, daemon=True)
+        self._thread.start()
+
+    def _send_loop(self) -> None:
+        while not self._stop_event.is_set():
+            with self._lock:
+                if self._sending:
+                    self._send_fc_state(
+                    )
+            self._stop_event.wait(timeout=self._SEND_INTERVAL_S)
+
+    def _time_boot_ms(self) -> int:
+        return int((time.monotonic() - self.boot_timestamp_s) * 1000)
+
+
+    def _send_fc_state(self) -> None:
+        """Build and send one FC state message.  Caller must hold _lock."""
         msg = MAVLink_aviant_detailed_fc_state_message(
-            time_boot_ms=time_boot_ms,
+            time_boot_ms=self._time_boot_ms(),
             time_unix_usec=int(time.time() * 1e6),
-            armed=1 if armed else 0,
+            armed=1 if self._armed else 0,
             vtol_state=0,
-            system_status=system_status,
+            system_status=self._system_status,
         )
         self.conn.mav.send(msg)
 
-    def send_parachute_command(self) -> None:
-        """Send MAV_CMD_DO_PARACHUTE"""
-        self.conn.mav.command_long_send(
-            target_system=1,
-            target_component=1,
-            command=self.MAV_CMD_DO_PARACHUTE,
-            confirmation=0,
-            param1=float(self.PARACHUTE_ACTION_RELEASE),
-            param2=0, param3=0, param4=0, param5=0, param6=0, param7=0,
-        )
+    def set_armed(self, armed: bool) -> None:
+        with self._lock:
+            self._armed = armed
 
-    def keep_alive(self, duration_s: float, armed: bool = True,
-                   interval_s: float = 0.05) -> None:
-        """Send AVIANT_DETAILED_FC_STATE at *interval_s* for *duration_s*."""
-        end = time.monotonic() + duration_s
-        while time.monotonic() < end:
-            self.send_fc_state(armed=armed)
-            time.sleep(interval_s)
+    def set_system_status(self, status: int) -> None:
+        with self._lock:
+            self._system_status = status
+
+    def pause_sending(self) -> None:
+        """Stop the background FC state stream (simulates FC going silent)."""
+        with self._lock:
+            self._sending = False
+
+    def resume_sending(self) -> None:
+        """Resume the background FC state stream."""
+        with self._lock:
+            self._sending = True
+
+    def send_parachute_command(self) -> None:
+        """Send MAV_CMD_DO_PARACHUTE."""
+        with self._lock:
+            self.conn.mav.command_long_send(
+                target_system=1,
+                target_component=1,
+                command=self.MAV_CMD_DO_PARACHUTE,
+                confirmation=0,
+                param1=float(self.PARACHUTE_ACTION_RELEASE),
+                param2=0, param3=0, param4=0, param5=0, param6=0, param7=0,
+            )
 
     def simulate_fc_reboot(self) -> None:
         """Simulate an FC reboot by resetting time_boot_ms to a small value.
 
         The ATS detects a reboot when time_boot_ms drops by more than 10 s
         compared to the previous message.  Resetting boot_timestamp_s makes
-        subsequent send_fc_state() calls produce small time_boot_ms values
-        automatically.
+        subsequent messages produce small time_boot_ms values.  The
+        background thread continues sending with the new epoch.
         """
-        self.boot_timestamp_s = time.monotonic()
-        self.send_fc_state(armed=False)
+        with self._lock:
+            self.boot_timestamp_s = time.monotonic()
+            self._armed = False
 
     def set_param(self, param_id: str, value: float) -> None:
         """Set a PX4 parameter via MAVLink PARAM_SET."""
-        self.conn.mav.param_set_send(
-            target_system=1,
-            target_component=1,
-            param_id=param_id.encode('utf-8'),
-            param_value=value,
-            param_type=_mavlink_mod.MAV_PARAM_TYPE_REAL32,
-        )
+        with self._lock:
+            self.conn.mav.param_set_send(
+                target_system=1,
+                target_component=1,
+                param_id=param_id.encode('utf-8'),
+                param_value=value,
+                param_type=_mavlink_mod.MAV_PARAM_TYPE_REAL32,
+            )
 
     def _drain_command_long(self) -> None:
         """Discard any stale COMMAND_LONG messages in the receive buffer."""
@@ -147,6 +192,7 @@ class ATSTester:
         Returns True if the command was received within timeout.
         """
         deadline = time.monotonic() + timeout_s
+        # Receive in loop since we may get COMMAND_LONG that is not MAV_CMD_DO_PARACHUTE
         while time.monotonic() < deadline:
             msg = self.conn.recv_match(type='COMMAND_LONG', blocking=True,
                                        timeout=0.5)
@@ -171,3 +217,8 @@ class ATSTester:
             if msg.command == self.MAV_CMD_DO_PARACHUTE:
                 return False
         return True
+
+    def shutdown(self) -> None:
+        """Stop the background sender thread."""
+        self._stop_event.set()
+        self._thread.join(timeout=3)

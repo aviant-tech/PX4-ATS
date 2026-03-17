@@ -2,19 +2,19 @@
 
 # Apply ATS test parameter overrides from environment variables.
 # These are set by the test fixture before starting PX4.
-[ -n "$ATS_PARAM_ACTIVE" ]    && param set AV_ATS_ACTIVE    $ATS_PARAM_ACTIVE
-[ -n "$ATS_PARAM_TIMEOUT" ]   && param set AV_ATS_TIMEOUT   $ATS_PARAM_TIMEOUT
-[ -n "$ATS_PARAM_ACC_NORM" ]  && param set AV_ATS_ACC_NORM  $ATS_PARAM_ACC_NORM
-[ -n "$ATS_PARAM_ROLL_ANG" ]  && param set AV_ATS_ROLL_ANG  $ATS_PARAM_ROLL_ANG
-[ -n "$ATS_PARAM_PITCH_ANG" ] && param set AV_ATS_PITCH_ANG $ATS_PARAM_PITCH_ANG
+[ -n "$PARAM_AV_ATS_ACTIVE" ]    && param set AV_ATS_ACTIVE    $PARAM_AV_ATS_ACTIVE
+[ -n "$PARAM_AV_ATS_TIMEOUT" ]   && param set AV_ATS_TIMEOUT   $PARAM_AV_ATS_TIMEOUT
+[ -n "$PARAM_AV_ATS_ACC_NORM" ]  && param set AV_ATS_ACC_NORM  $PARAM_AV_ATS_ACC_NORM
+[ -n "$PARAM_AV_ATS_ROLL_ANG" ]  && param set AV_ATS_ROLL_ANG  $PARAM_AV_ATS_ROLL_ANG
+[ -n "$PARAM_AV_ATS_PITCH_ANG" ] && param set AV_ATS_PITCH_ANG $PARAM_AV_ATS_PITCH_ANG
 
-[ -n "$ATS_PARAM_V_EN" ]      && param set AV_ATS_V_EN     $ATS_PARAM_V_EN
-[ -n "$ATS_PARAM_MP_LOWV" ]   && param set AV_ATS_MP_LOWV  $ATS_PARAM_MP_LOWV
-[ -n "$ATS_PARAM_UPS_LOWV" ]  && param set AV_ATS_UPS_LOWV $ATS_PARAM_UPS_LOWV
+[ -n "$PARAM_AV_ATS_V_EN" ]      && param set AV_ATS_V_EN     $PARAM_AV_ATS_V_EN
+[ -n "$PARAM_AV_ATS_MP_LOWV" ]   && param set AV_ATS_MP_LOWV  $PARAM_AV_ATS_MP_LOWV
+[ -n "$PARAM_AV_ATS_UPS_LOWV" ]  && param set AV_ATS_UPS_LOWV $PARAM_AV_ATS_UPS_LOWV
 
-[ -n "$ATS_PARAM_V_MP1_SIM" ] && param set AV_V_MP1_SIM $ATS_PARAM_V_MP1_SIM
-[ -n "$ATS_PARAM_V_MP2_SIM" ] && param set AV_V_MP2_SIM $ATS_PARAM_V_MP2_SIM
-[ -n "$ATS_PARAM_V_UPS_SIM" ] && param set AV_V_UPS_SIM $ATS_PARAM_V_UPS_SIM
+[ -n "$PARAM_AV_V_MP1_SIM" ] && param set AV_V_MP1_SIM $PARAM_AV_V_MP1_SIM
+[ -n "$PARAM_AV_V_MP2_SIM" ] && param set AV_V_MP2_SIM $PARAM_AV_V_MP2_SIM
+[ -n "$PARAM_AV_V_UPS_SIM" ] && param set AV_V_UPS_SIM $PARAM_AV_V_UPS_SIM
 
 aviant_ats start
 ats_voltage_measurement start

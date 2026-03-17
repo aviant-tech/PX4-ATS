@@ -212,12 +212,14 @@ def tester(px4):
 
     t = ATSTester(conn)
 
+    # Background thread is already sending (disarmed, MAV_STATE_ACTIVE).
     # Let the system settle and establish baseline state.
-    t.keep_alive(duration_s=5.0, armed=False)
+    time.sleep(5.0)
 
     # Drain any stale COMMAND_LONG messages from the boot period.
     t._drain_command_long()
 
     yield t
 
+    t.shutdown()
     conn.close()
