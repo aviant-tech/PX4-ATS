@@ -16,7 +16,15 @@ from __future__ import annotations
 
 import os
 
+WORKSPACE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+DEFAULT_BUILD_DIR = os.path.join(WORKSPACE, 'build', 'px4_sitl_ats')
+
+# Build the aviant dialect from the in-tree mavlink XML definitions.
+# These must be set before pymavlink is imported.
 os.environ['MAVLINK20'] = '1'
+os.environ['MAVLINK_DIALECT'] = 'aviant'
+os.environ['MDEF'] = os.path.join(
+    WORKSPACE, 'src', 'modules', 'mavlink', 'mavlink', 'message_definitions')
 
 import shutil
 import signal
@@ -29,10 +37,6 @@ import pytest
 from pymavlink import mavutil
 
 from ats_tester import ATSTester
-
-
-WORKSPACE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-DEFAULT_BUILD_DIR = os.path.join(WORKSPACE, 'build', 'px4_sitl_ats')
 
 MAV_PORT = 14540
 

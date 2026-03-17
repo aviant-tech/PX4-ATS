@@ -27,3 +27,6 @@
 
 aviant_ats start
 ats_adc_mock start
+
+# Stream ATS status on the offboard/API link so the test harness can read it.
+mavlink stream -r 5 -s AVIANT_ATS_STATUS -u ${udp_offboard_port_local:?}
