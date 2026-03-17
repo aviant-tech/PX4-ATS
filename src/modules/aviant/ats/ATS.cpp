@@ -109,10 +109,27 @@ ATS::Run()
 
 	ats_voltage_measurements_s voltage{};
 
+	// Expected at 100hz
 	if (_ats_voltage_sub.update(&voltage)) {
 		_aviant_ats.main_voltage_fail = (voltage.main_power1_v < _params_av_ats_mp_lowv.get())
 						&& (voltage.main_power2_v < _params_av_ats_mp_lowv.get());
-		_aviant_ats.ups_healthy = voltage.ats_ups_v > _params_av_ats_ups_lowv.get();
+
+		// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
+		// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
+		_ups_healthy_hysteresis.set_hysteresis_time_from(false, 100_ms);
+		_ups_healthy_hysteresis.set_hysteresis_time_from(true, 100_ms);
+		_ups_healthy_hysteresis.set_state_and_update(
+			voltage.ats_ups_v > _params_av_ats_ups_lowv.get(),
+			hrt_absolute_time()
+		);
+
+		if (!_ups_healthy_hysteresis.get_state() && _ups_has_been_healthy && !_latch_ups_unhealthy) {
+			PX4_WARN("UPS unhealthy! (latching)");
+			_latch_ups_unhealthy = true;
+		}
+
+		_aviant_ats.ups_healthy = _latch_ups_unhealthy ? false : _ups_healthy_hysteresis.get_state();
+		_ups_has_been_healthy |= _aviant_ats.ups_healthy;
 	}
 
 	// Note: Please use only variables from the _aviant_ats message to deploy the parachute,

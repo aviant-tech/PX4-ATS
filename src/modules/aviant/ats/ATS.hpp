@@ -49,12 +49,15 @@ private:
 
 	hrt_abstime _last_sign_of_life_from_fc{0};
 	uint8_t _last_fc_state{aviant_ats_s::FC_STATE_DISARMED};
+	bool _ups_has_been_healthy{false};
+	bool _latch_ups_unhealthy{false};
 
 	// start at max, so that the first delta is negative.
 	// otherwise the first ts may be interpreted as a "reboot" if the time from ats boot to first message is large
 	int64_t _last_fc_boot_timestamp{INT64_MAX};
 
 	systemlib::Hysteresis _deployment_hysteresis{false};
+	systemlib::Hysteresis _ups_healthy_hysteresis{false};
 	bool _parachute_command_sent{false};
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
