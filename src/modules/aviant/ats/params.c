@@ -118,3 +118,66 @@ PARAM_DEFINE_INT32(AV_ATS_V_EN, 0);
  * @max 5
  */
 PARAM_DEFINE_FLOAT(AV_ATS_TTRI, 0.15f);
+
+/**
+ * Main Power 1 ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_MP1_CH, -1);
+
+/**
+ * Main Power 1 voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_MP1_DV, 1.0f);
+
+/**
+ * Main Power 2 ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_MP2_CH, -1);
+
+/**
+ * Main Power 2 voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_MP2_DV, 1.0f);
+
+/**
+ * UPS ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_UPS_CH, -1);
+
+/**
+ * UPS voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);

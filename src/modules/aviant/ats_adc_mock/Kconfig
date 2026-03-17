@@ -1,0 +1,5 @@
+menuconfig MODULES_AVIANT_ATS_ADC_MOCK
+	bool "Aviant ATS ADC Mock"
+	default n
+	help
+		Enable Aviant ATS ADC mock module for SITL testing

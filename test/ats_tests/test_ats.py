@@ -149,9 +149,9 @@ def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
     'PARAM_AV_ATS_V_EN':      '1',
     'PARAM_AV_ATS_MP_LOWV':   '15.0',
     'PARAM_AV_ATS_UPS_LOWV':  '4.0',
-    'PARAM_AV_V_MP1_SIM':     '50.0',
-    'PARAM_AV_V_MP2_SIM':     '50.0',
-    'PARAM_AV_V_UPS_SIM':     '5.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     """Deploy when both main powers drop below threshold while UPS stays healthy."""
@@ -159,8 +159,8 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     tester.set_armed(True)
     time.sleep(1.0)
 
-    tester.set_param('AV_V_MP1_SIM', 10.0)
-    tester.set_param('AV_V_MP2_SIM', 10.0)
+    tester.set_param('AV_ATS_MP1_SM', 10.0)
+    tester.set_param('AV_ATS_MP2_SM', 10.0)
 
     assert tester.wait_for_deploy(timeout_s=5.0), \
         "Expected deploy when both main powers low and UPS healthy"
@@ -175,9 +175,9 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     'PARAM_AV_ATS_V_EN':      '1',
     'PARAM_AV_ATS_MP_LOWV':   '15.0',
     'PARAM_AV_ATS_UPS_LOWV':  '4.0',
-    'PARAM_AV_V_MP1_SIM':     '10.0',
-    'PARAM_AV_V_MP2_SIM':     '10.0',
-    'PARAM_AV_V_UPS_SIM':     '5.0',
+    'PARAM_AV_ATS_MP1_SM':     '10.0',
+    'PARAM_AV_ATS_MP2_SM':     '10.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_inactive(tester: ATSTester):
     """No deploy when FC is INACTIVE, even with all fail flags set."""
@@ -198,9 +198,9 @@ def test_nodeploy_inactive(tester: ATSTester):
     'PARAM_AV_ATS_V_EN':      '1',
     'PARAM_AV_ATS_MP_LOWV':   '15.0',
     'PARAM_AV_ATS_UPS_LOWV':  '4.0',
-    'PARAM_AV_V_MP1_SIM':     '10.0',
-    'PARAM_AV_V_MP2_SIM':     '10.0',
-    'PARAM_AV_V_UPS_SIM':     '5.0',
+    'PARAM_AV_ATS_MP1_SM':     '10.0',
+    'PARAM_AV_ATS_MP2_SM':     '10.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_disarmed(tester: ATSTester):
     """No deploy when FC is DISARMED, even with all fail flags set."""
@@ -332,9 +332,9 @@ def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
     'PARAM_AV_ATS_V_EN':      '1',
     'PARAM_AV_ATS_MP_LOWV':   '15.0',
     'PARAM_AV_ATS_UPS_LOWV':  '4.0',
-    'PARAM_AV_V_MP1_SIM':     '50.0',
-    'PARAM_AV_V_MP2_SIM':     '50.0',
-    'PARAM_AV_V_UPS_SIM':     '5.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_voltage_main_low_ups_unhealthy(tester: ATSTester):
     """No deploy when all voltages (including UPS) drop simultaneously.
@@ -351,10 +351,10 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(tester: ATSTester):
     # while UPS is still healthy (which would trigger voltage_fail).
     # This is realistic, we will have a margin on the voltage threshold
     # ensuring measurements for a short while after the failure is detected
-    tester.set_param('AV_V_UPS_SIM', 3.0)
+    tester.set_param('AV_ATS_UPS_SM', 3.0)
     time.sleep(0.3)
-    tester.set_param('AV_V_MP1_SIM', 10.0)
-    tester.set_param('AV_V_MP2_SIM', 10.0)
+    tester.set_param('AV_ATS_MP1_SM', 10.0)
+    tester.set_param('AV_ATS_MP2_SM', 10.0)
 
     assert tester.verify_no_deploy(duration_s=3.0), \
         "Expected no deploy when all voltages low (UPS unreliable)"

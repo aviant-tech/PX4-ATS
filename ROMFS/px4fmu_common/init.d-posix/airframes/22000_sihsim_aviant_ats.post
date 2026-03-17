@@ -12,9 +12,18 @@
 [ -n "$PARAM_AV_ATS_MP_LOWV" ]   && param set AV_ATS_MP_LOWV  $PARAM_AV_ATS_MP_LOWV
 [ -n "$PARAM_AV_ATS_UPS_LOWV" ]  && param set AV_ATS_UPS_LOWV $PARAM_AV_ATS_UPS_LOWV
 
-[ -n "$PARAM_AV_V_MP1_SIM" ] && param set AV_V_MP1_SIM $PARAM_AV_V_MP1_SIM
-[ -n "$PARAM_AV_V_MP2_SIM" ] && param set AV_V_MP2_SIM $PARAM_AV_V_MP2_SIM
-[ -n "$PARAM_AV_V_UPS_SIM" ] && param set AV_V_UPS_SIM $PARAM_AV_V_UPS_SIM
+# ADC channel/divider config (shared by ATS and the ADC mock)
+[ -n "$PARAM_AV_ATS_MP1_CH" ]  && param set AV_ATS_MP1_CH  $PARAM_AV_ATS_MP1_CH
+[ -n "$PARAM_AV_ATS_MP1_DV" ]  && param set AV_ATS_MP1_DV  $PARAM_AV_ATS_MP1_DV
+[ -n "$PARAM_AV_ATS_MP2_CH" ]  && param set AV_ATS_MP2_CH  $PARAM_AV_ATS_MP2_CH
+[ -n "$PARAM_AV_ATS_MP2_DV" ]  && param set AV_ATS_MP2_DV  $PARAM_AV_ATS_MP2_DV
+[ -n "$PARAM_AV_ATS_UPS_CH" ]  && param set AV_ATS_UPS_CH  $PARAM_AV_ATS_UPS_CH
+[ -n "$PARAM_AV_ATS_UPS_DV" ]  && param set AV_ATS_UPS_DV  $PARAM_AV_ATS_UPS_DV
+
+# Simulated voltages (ADC mock only)
+[ -n "$PARAM_AV_ATS_MP1_SM" ] && param set AV_ATS_MP1_SM $PARAM_AV_ATS_MP1_SM
+[ -n "$PARAM_AV_ATS_MP2_SM" ] && param set AV_ATS_MP2_SM $PARAM_AV_ATS_MP2_SM
+[ -n "$PARAM_AV_ATS_UPS_SM" ] && param set AV_ATS_UPS_SM $PARAM_AV_ATS_UPS_SM
 
 aviant_ats start
-ats_voltage_measurement start
+ats_adc_mock start

@@ -21,4 +21,12 @@ param set-default CBRK_IO_SAFETY 22027
 # Speed up EKF2 tilt alignment in SIH.
 param set-default EKF2_GRAV_NOISE 0.2
 
+# ADC channel/divider defaults for the SITL ADC mock.
+param set-default AV_ATS_MP1_CH 0
+param set-default AV_ATS_MP1_DV 10.0
+param set-default AV_ATS_MP2_CH 1
+param set-default AV_ATS_MP2_DV 10.0
+param set-default AV_ATS_UPS_CH 2
+param set-default AV_ATS_UPS_DV 5.0
+
 param set SIH_VEHICLE_TYPE 0

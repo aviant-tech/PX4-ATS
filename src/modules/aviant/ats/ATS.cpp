@@ -1,6 +1,5 @@
 #include "ATS.hpp"
 #include "drivers/drv_hrt.h"
-#include "uORB/topics/aviant_ats.h"
 #include <math.h>
 
 using namespace time_literals;
@@ -21,6 +20,7 @@ ATS::init()
 {
 	bool success = true;
 
+	// 200hz is twice as fast as adc_report is expected, this is the minimum rate we should run at
 	ScheduleOnInterval(5_ms);
 
 	return success;
@@ -107,19 +107,22 @@ ATS::Run()
 		_aviant_ats.pitch_fail = (fabsf(ats_pitch) > _params_av_ats_pitch_ang.get());
 	}
 
-	ats_voltage_measurements_s voltage{};
+	adc_report_s adc{};
 
-	// Expected at 100hz
-	if (_ats_voltage_sub.update(&voltage)) {
-		_aviant_ats.main_voltage_fail = (voltage.main_power1_v < _params_av_ats_mp_lowv.get())
-						&& (voltage.main_power2_v < _params_av_ats_mp_lowv.get());
+	if (_adc_report_sub.update(&adc)) {
+		_aviant_ats.main_power1_v = channel_voltage(adc, _param_mp1_ch.get(), _param_mp1_div.get());
+		_aviant_ats.main_power2_v = channel_voltage(adc, _param_mp2_ch.get(), _param_mp2_div.get());
+		_aviant_ats.ups_v         = channel_voltage(adc, _param_ups_ch.get(), _param_ups_div.get());
+
+		_aviant_ats.main_voltage_fail = (_aviant_ats.main_power1_v < _params_av_ats_mp_lowv.get())
+						&& (_aviant_ats.main_power2_v < _params_av_ats_mp_lowv.get());
 
 		// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
 		// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
 		_ups_healthy_hysteresis.set_hysteresis_time_from(false, 100_ms);
 		_ups_healthy_hysteresis.set_hysteresis_time_from(true, 100_ms);
 		_ups_healthy_hysteresis.set_state_and_update(
-			voltage.ats_ups_v > _params_av_ats_ups_lowv.get(),
+			_aviant_ats.ups_v > _params_av_ats_ups_lowv.get(),
 			hrt_absolute_time()
 		);
 
@@ -239,6 +242,19 @@ void ATS::send_flighttermination_command()
 	vehicle_command_pub.publish(vcmd);
 
 	PX4_INFO("Send FLIGHTTERMINATION CMD");
+}
+
+float ATS::channel_voltage(const adc_report_s &adc, int32_t channel, float divider)
+{
+	for (unsigned i = 0; i < sizeof(adc.channel_id) / sizeof(adc.channel_id[0]); i++) {
+		if (adc.channel_id[i] == channel) {
+			const float lsb = adc.v_ref / static_cast<float>(adc.resolution);
+			const float adc_voltage = static_cast<float>(adc.raw_data[i]) * lsb;
+			return adc_voltage * divider;
+		}
+	}
+
+	return 0.0f;
 }
 
 int ATS::task_spawn(int argc, char *argv[])
