@@ -103,3 +103,18 @@ PARAM_DEFINE_FLOAT(AV_ATS_UPS_LOWV, 4.0f);
  * @boolean
  */
 PARAM_DEFINE_INT32(AV_ATS_V_EN, 0);
+
+/**
+ * ATS deployment hysteresis
+ *
+ * Time that the deployment condition must be continuously true
+ * before the parachute is deployed. Does not apply to voltage-based
+ * deployment which is immediate.
+ *
+ * @group Aviant
+ * @unit s
+ * @decimal 2
+ * @min 0
+ * @max 5
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_TTRI, 0.15f);

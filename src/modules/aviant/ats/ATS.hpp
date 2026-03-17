@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <lib/hysteresis/hysteresis.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_config.h>
@@ -41,42 +43,19 @@ public:
 	void send_parachute_command();
 	void send_flighttermination_command();
 
-	enum class FC_STATE {
-		DISARMED	= aviant_ats_s::FC_STATE_DISARMED,
-		ARMED		= aviant_ats_s::FC_STATE_ARMED,
-		TERMINATED	= aviant_ats_s::FC_STATE_TERMINATED
-	} _fc_state{FC_STATE::DISARMED};
-
 private:
-
-	static inline const char *fcStateToString(FC_STATE fc_state)
-	{
-		static constexpr const char *strings[] = {
-			"DISARMED",
-			"ARMED",
-			"TERMINATED"
-		};
-
-		const uint8_t index = static_cast<uint8_t>(fc_state);
-
-		if (index >= (sizeof(strings) / sizeof(strings[0]))) {
-			return "UNKNOWN";
-		}
-
-		return strings[index];
-	}
-
-	static constexpr float DEG_360 = 360.0f;
 
 	aviant_ats_s _aviant_ats{};
 
 	hrt_abstime _last_sign_of_life_from_fc{0};
-	int64_t _fc_boot_time{0};
+	uint8_t _last_fc_state{aviant_ats_s::FC_STATE_DISARMED};
 
-	float _ats_roll{0.0f};	// degree
-	float _ats_pitch{0.0f};	// degree
+	// start at max, so that the first delta is negative.
+	// otherwise the first ts may be interpreted as a "reboot" if the time from ats boot to first message is large
+	int64_t _last_fc_boot_timestamp{INT64_MAX};
 
-	bool _publish_vehicle_command_once{false};
+	systemlib::Hysteresis _deployment_hysteresis{false};
+	bool _parachute_command_sent{false};
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
 
@@ -95,6 +74,7 @@ private:
 		(ParamFloat<px4::params::AV_ATS_MP_LOWV>)   _params_av_ats_mp_lowv,
 		(ParamFloat<px4::params::AV_ATS_UPS_LOWV>)  _params_av_ats_ups_lowv,
 		(ParamInt<px4::params::AV_ATS_V_EN>)        _params_av_ats_v_en,
+		(ParamFloat<px4::params::AV_ATS_TTRI>)      _params_av_ats_ttri,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

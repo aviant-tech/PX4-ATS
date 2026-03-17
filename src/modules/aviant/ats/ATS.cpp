@@ -1,5 +1,6 @@
 #include "ATS.hpp"
 #include "drivers/drv_hrt.h"
+#include "uORB/topics/aviant_ats.h"
 #include <math.h>
 
 using namespace time_literals;
@@ -20,8 +21,6 @@ ATS::init()
 {
 	bool success = true;
 
-	_last_sign_of_life_from_fc = hrt_absolute_time();
-
 	ScheduleOnInterval(1_ms);
 
 	return success;
@@ -39,41 +38,38 @@ ATS::Run()
 
 	if (_ext_detailed_fc_state_sub.update(&ext_fc_state)) {
 
-		_last_sign_of_life_from_fc = ext_fc_state.timestamp;
 
 		const int64_t fc_timestamp = static_cast<int64_t>(ext_fc_state.time_boot_ms * 1000);
-		const int64_t timestamp = static_cast<int64_t>(hrt_absolute_time());
-		const int64_t measured_fc_boot_time = timestamp - fc_timestamp;
+		const int64_t ats_timestamp = static_cast<int64_t>(ext_fc_state.timestamp);
+		const int64_t fc_boot_timestamp = ats_timestamp - fc_timestamp;
 
-		const int64_t change_in_boot_time = math::abs_t(measured_fc_boot_time - _fc_boot_time);
+		constexpr int64_t reboot_detection_threshold = 10_s;
 
-		constexpr int64_t reboot_change_threshold = 10_s;
-
-		if (change_in_boot_time >= reboot_change_threshold) {
-			if (static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED) {
-				PX4_WARN("Reboot and armed (dt = %ds)", static_cast<int>(change_in_boot_time / 1_s));
+		if (fc_boot_timestamp > _last_fc_boot_timestamp + reboot_detection_threshold) {
+			if (_last_fc_state == aviant_ats_s::FC_STATE_ARMED) {
+				PX4_WARN("Reboot detected while armed!");
 				_aviant_ats.fc_rebooted_while_armed = true;
 
 			} else {
-				PX4_WARN("Reboot but not armed (dt = %ds)", static_cast<int>(change_in_boot_time / 1_s));
+				PX4_INFO("Reboot detected, but not armed");
 			}
 
 			// Never reset, this will only be true for one sample, but we want it to latch
 		}
 
-		_fc_boot_time = measured_fc_boot_time;
-
 		if (ext_fc_state.system_status == external_aviant_detailed_fc_state_s::SYSTEM_STATUS_FLIGHT_TERMINATION) {
-			_fc_state = FC_STATE::TERMINATED;
+			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_TERMINATED;
 
 		} else if (ext_fc_state.armed) {
-			_fc_state = FC_STATE::ARMED;
+			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_ARMED;
 
 		} else {
-			_fc_state = FC_STATE::DISARMED;
+			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_DISARMED;
 		}
 
-		_aviant_ats.fc_state = static_cast<uint8_t>(_fc_state);
+		_last_fc_boot_timestamp = fc_boot_timestamp;
+		_last_fc_state = _aviant_ats.fc_state;
+		_last_sign_of_life_from_fc = ext_fc_state.timestamp;
 	}
 
 	if (hrt_elapsed_time(&_last_sign_of_life_from_fc) > (_params_av_ats_timeout.get() * 1000ULL)) {
@@ -87,85 +83,101 @@ ATS::Run()
 
 	if (_vehicle_acceleration_sub.update(&vehicle_acceleration)) {
 
-		float accel_norm = sqrtf(
-					   vehicle_acceleration.xyz[0] * vehicle_acceleration.xyz[0] +
-					   vehicle_acceleration.xyz[1] * vehicle_acceleration.xyz[1] +
-					   vehicle_acceleration.xyz[2] * vehicle_acceleration.xyz[2]
-				   );
+		const float accel_norm = sqrtf(
+						 vehicle_acceleration.xyz[0] * vehicle_acceleration.xyz[0] +
+						 vehicle_acceleration.xyz[1] * vehicle_acceleration.xyz[1] +
+						 vehicle_acceleration.xyz[2] * vehicle_acceleration.xyz[2]
+					 );
 
-		if (accel_norm < _params_av_ats_acc_norm.get()) {
-			_aviant_ats.accel_norm_fail = true;
 
-		} else {
-			_aviant_ats.accel_norm_fail = false;
-		}
+		_aviant_ats.accel_norm_fail = accel_norm < _params_av_ats_acc_norm.get();
 	}
 
 	vehicle_attitude_s vehicle_attitude{};
 
 	if (_vehicle_attitude_sub.update(&vehicle_attitude)) {
 
-		matrix::Quatf q(vehicle_attitude.q);
-		matrix::Eulerf euler(q);
+		const matrix::Quatf q(vehicle_attitude.q);
+		const matrix::Eulerf euler(q);
 
-		_ats_roll  = math::degrees(euler.phi());
-		_ats_pitch = math::degrees(euler.theta());
+		const float ats_roll  = math::degrees(euler.phi());
+		const float ats_pitch = math::degrees(euler.theta());
 
-		_aviant_ats.roll_fail = (fabsf(_ats_roll) > _params_av_ats_roll_ang.get());
-		_aviant_ats.pitch_fail = (fabsf(_ats_pitch) > _params_av_ats_pitch_ang.get());
+		_aviant_ats.roll_fail = (fabsf(ats_roll) > _params_av_ats_roll_ang.get());
+		_aviant_ats.pitch_fail = (fabsf(ats_pitch) > _params_av_ats_pitch_ang.get());
 	}
 
 	ats_voltage_measurements_s voltage{};
 
 	if (_ats_voltage_sub.update(&voltage)) {
-		const bool main_power_low = (voltage.main_power1_v < _params_av_ats_mp_lowv.get())
-					    && (voltage.main_power2_v < _params_av_ats_mp_lowv.get());
-		const bool ups_healthy = voltage.ats_ups_v > _params_av_ats_ups_lowv.get();
-
-		_aviant_ats.voltage_fail = main_power_low && ups_healthy;
+		_aviant_ats.main_voltage_fail = (voltage.main_power1_v < _params_av_ats_mp_lowv.get())
+						&& (voltage.main_power2_v < _params_av_ats_mp_lowv.get());
+		_aviant_ats.ups_healthy = voltage.ats_ups_v > _params_av_ats_ups_lowv.get();
 	}
 
-	const bool ats_active = static_cast<bool>(_params_av_ats_active.get());
+	// Note: Please use only variables from the _aviant_ats message to deploy the parachute,
+	// Being able to read the entire state from one ulog sample makes troubleshooting easier
 
-	if (ats_active) {
-		// Note: Please use only variables from the _aviant_ats message to deploy the parachute,
-		// Being able to read the entire state from one ulog sample makes troubleshooting easier
-		if (
-			(
-				(static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED && _aviant_ats.fc_timeout)
+	const bool control_failure = (
+					     _aviant_ats.roll_fail
+					     || _aviant_ats.pitch_fail
+					     || _aviant_ats.accel_norm_fail
+				     );
+	const bool fc_is_supposed_to_be_armed_but_is_untrustworthy = (
+				(_aviant_ats.fc_state == aviant_ats_s::FC_STATE_ARMED && _aviant_ats.fc_timeout)
 				|| _aviant_ats.fc_rebooted_while_armed
-			)
-			&& (
-				_aviant_ats.roll_fail
-				|| _aviant_ats.pitch_fail
-				|| _aviant_ats.accel_norm_fail
-			)
-		) {
-			PX4_WARN("ATS: Control failure detected! Will deploy parachute");
-			_aviant_ats.parachute_deploy = true;
-		}
+			);
 
-		if (
+	_aviant_ats.maybe_parachute_deploy = (
+			(control_failure && fc_is_supposed_to_be_armed_but_is_untrustworthy)
+			|| _aviant_ats.fc_state == aviant_ats_s::FC_STATE_TERMINATED
+					     );
+
+
+	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
+	_deployment_hysteresis.set_state_and_update(_aviant_ats.maybe_parachute_deploy, hrt_absolute_time());
+	_aviant_ats.parachute_deploy = _deployment_hysteresis.get_state();
+
+	// We don't have time to wait for the hysteresis in a power loss scenario,
+	// since the parachute capacitor can discharge in as little as 30ms.
+	// See: https://aviant.atlassian.net/wiki/x/AQDdew
+	if (
+		(
 			_params_av_ats_v_en.get()
-			&& static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::ARMED
-			&& _aviant_ats.voltage_fail
-		) {
-			PX4_WARN("ATS: Voltage failure detected! Will deploy parachute");
-			_aviant_ats.parachute_deploy = true;
+			&& _aviant_ats.ups_healthy
+			&& _aviant_ats.main_voltage_fail
+		)
+		&& (
+			_aviant_ats.fc_state != aviant_ats_s::FC_STATE_DISARMED
+			|| _aviant_ats.fc_rebooted_while_armed
+		)
+	) {
+		if (!_parachute_command_sent) {
+			PX4_WARN("Power loss detected, deploying immediately!");
 		}
 
-		if (static_cast<FC_STATE>(_aviant_ats.fc_state) == FC_STATE::TERMINATED) {
-			PX4_WARN("ATS: Flight controller is terminated! Will deploy parachute");
-			_aviant_ats.parachute_deploy = true;
-
-		}
-
+		_aviant_ats.parachute_deploy = true;
 	}
 
-	if (!_publish_vehicle_command_once && _aviant_ats.parachute_deploy) {
-		send_parachute_command();
-		send_flighttermination_command();
-		_publish_vehicle_command_once = true;
+	if (_aviant_ats.parachute_deploy) {
+		if (!_parachute_command_sent) {
+			if (_params_av_ats_active.get()) {
+				// Send multiple messages in case the link is bad.
+				// We have experienced corrupted messages before
+				for (int i = 0; i < 5; i++) {
+					send_parachute_command();
+					send_flighttermination_command();
+				}
+
+			} else {
+				PX4_WARN("Would have deployed, but is inactive");
+			}
+
+			_parachute_command_sent = true;
+		}
+
+	} else {
+		_parachute_command_sent = false;
 	}
 
 	_aviant_ats.timestamp = hrt_absolute_time();
@@ -239,9 +251,8 @@ int ATS::print_status()
 {
 	PX4_INFO("Running\n");
 
-	printf("FC State: %s\n", fcStateToString(_fc_state));
+	printf("FC State: %d\n", _last_fc_state);
 	printf("FC Timestamp: %lld\n", _last_sign_of_life_from_fc);
-	printf("ATS Roll: %.2f°, Pitch: %.2f°\n", (double)_ats_roll, (double)_ats_pitch);
 	return 0;
 }
 
