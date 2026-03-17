@@ -21,7 +21,7 @@ ATS::init()
 {
 	bool success = true;
 
-	ScheduleOnInterval(1_ms);
+	ScheduleOnInterval(5_ms);
 
 	return success;
 }
