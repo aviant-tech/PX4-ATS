@@ -36,23 +36,31 @@ private:
 
 			uint32_t flags = 0;
 
-			if (ats.accel_norm_fail)   { flags |= ACCEL_NORM_FAIL; }
+			if (ats.accel_norm_fail)   { flags |= AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL; }
 
-			if (ats.roll_fail)         { flags |= ROLL_FAIL; }
+			if (ats.roll_fail)         { flags |= AVIANT_ATS_STATUS_FLAG_ROLL_FAIL; }
 
-			if (ats.pitch_fail)        { flags |= PITCH_FAIL; }
+			if (ats.pitch_fail)        { flags |= AVIANT_ATS_STATUS_FLAG_PITCH_FAIL; }
 
-			if (ats.fc_timeout)        { flags |= FC_TIMEOUT; }
+			if (ats.fc_timeout)        { flags |= AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT; }
 
-			if (ats.fc_rebooted_while_armed)        { flags |= REBOOTED_WHILE_ARMED; }
+			if (ats.fc_rebooted_while_armed)        { flags |= AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED; }
 
-			if (ats.parachute_deploy)  { flags |= PARACHUTE_DEPLOY; }
+			if (ats.parachute_deploy)  { flags |= AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY; }
+
+			if (ats.main_voltage_fail)  { flags |= AVIANT_ATS_STATUS_FLAG_POWER_LOSS; }
+
+			if (!ats.ups_healthy)  { flags |= AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY; }
 
 			mavlink_msg_aviant_ats_status_send(
 				_mavlink->get_channel(),
 				ats.timestamp / 1000U,
 				ats.fc_state,
-				flags);
+				flags,
+				ats.main_power1_v,
+				ats.main_power2_v,
+				ats.ups_v
+			);
 
 			return true;
 		}

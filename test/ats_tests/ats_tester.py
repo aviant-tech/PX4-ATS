@@ -182,13 +182,15 @@ class ATSTester:
     def flags_str(flags: int) -> str:
         """Human-readable representation of ATS status flags."""
         _FLAG_NAMES = [
-            ('ACCEL_NORM_FAIL',     mavlink.ACCEL_NORM_FAIL),
-            ('ROLL_FAIL',           mavlink.ROLL_FAIL),
-            ('PITCH_FAIL',          mavlink.PITCH_FAIL),
-            ('FC_TIMEOUT',          mavlink.FC_TIMEOUT),
-            ('POWER_LOSS',          mavlink.POWER_LOSS),
-            ('REBOOTED_WHILE_ARMED', mavlink.REBOOTED_WHILE_ARMED),
-            ('PARACHUTE_DEPLOY',    mavlink.PARACHUTE_DEPLOY),
+            ('ACCEL_NORM_FAIL',     mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL),
+            ('ROLL_FAIL',           mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL),
+            ('PITCH_FAIL',          mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+            ('FC_TIMEOUT',          mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT),
+            ('POWER_LOSS',          mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
+            ('UPS_UNHEALTHY',       mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY),
+            ('POWER_LOSS',          mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
+            ('REBOOTED_WHILE_ARMED',mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED),
+            ('PARACHUTE_DEPLOY',    mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
         ]
         names = [n for n, v in _FLAG_NAMES if flags & v]
         return ' | '.join(names) if names else '(none)'

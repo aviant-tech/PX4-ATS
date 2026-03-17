@@ -61,7 +61,7 @@ def test_deploy_armed_terminated(tester: ATSTester):
         "Expected deploy when FC is MAV_STATE_FLIGHT_TERMINATION while armed"
 
     assert_ats_status(tester,
-                      expected_flags=mavlink.PARACHUTE_DEPLOY,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
                       expected_fc_state=ATSTester.FC_STATE_TERMINATED)
 
 
@@ -82,7 +82,7 @@ def test_deploy_disarmed_terminated(tester: ATSTester):
         "Expected deploy when FC is MAV_STATE_FLIGHT_TERMINATION while disarmed"
 
     assert_ats_status(tester,
-                      expected_flags=mavlink.PARACHUTE_DEPLOY,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
                       expected_fc_state=ATSTester.FC_STATE_TERMINATED)
 
 
@@ -104,9 +104,9 @@ def test_deploy_timeout_accel_fail(tester: ATSTester):
         "Expected deploy on ARMED + timeout + accel-norm fail"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.FC_TIMEOUT
-                                      | mavlink.PARACHUTE_DEPLOY),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -132,9 +132,9 @@ def test_deploy_timeout_roll_fail(tester: ATSTester):
         "Expected deploy on ARMED + timeout + roll fail"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ROLL_FAIL
-                                      | mavlink.FC_TIMEOUT
-                                      | mavlink.PARACHUTE_DEPLOY),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -160,9 +160,9 @@ def test_deploy_timeout_pitch_fail(tester: ATSTester):
         "Expected deploy on ARMED + timeout + pitch fail"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.PITCH_FAIL
-                                      | mavlink.FC_TIMEOUT
-                                      | mavlink.PARACHUTE_DEPLOY),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -184,9 +184,9 @@ def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
         "Expected deploy on FC reboot while armed with sensor failure"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.REBOOTED_WHILE_ARMED
-                                      | mavlink.PARACHUTE_DEPLOY),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_fc_state=ATSTester.FC_STATE_DISARMED)
 
 
@@ -216,7 +216,8 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
         "Expected deploy when both main powers low and UPS healthy"
 
     assert_ats_status(tester,
-                      expected_flags=mavlink.PARACHUTE_DEPLOY,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY
+                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -245,10 +246,11 @@ def test_nodeploy_inactive(tester: ATSTester):
     # All sensor fails + voltage fail → parachute_deploy is set in the uORB
     # message, but no command is sent because ATS is inactive.
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.ROLL_FAIL
-                                      | mavlink.PITCH_FAIL
-                                      | mavlink.PARACHUTE_DEPLOY),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -276,9 +278,10 @@ def test_nodeploy_disarmed(tester: ATSTester):
     # Sensor fail flags are set, but disarmed blocks both the control-failure
     # path and the voltage path → no PARACHUTE_DEPLOY.
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.ROLL_FAIL
-                                      | mavlink.PITCH_FAIL),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
                       expected_fc_state=ATSTester.FC_STATE_DISARMED)
 
 
@@ -302,7 +305,7 @@ def test_nodeploy_terminated_inactive(tester: ATSTester):
     # Terminated path fires → parachute_deploy true in uORB, but no
     # command because ATS is inactive.
     assert_ats_status(tester,
-                      expected_flags=mavlink.PARACHUTE_DEPLOY,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
                       expected_fc_state=ATSTester.FC_STATE_TERMINATED)
 
 
@@ -324,7 +327,7 @@ def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
         "Expected no deploy on timeout alone without sensor fail"
 
     assert_ats_status(tester,
-                      expected_flags=mavlink.FC_TIMEOUT,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT,
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -350,9 +353,9 @@ def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
         "Expected no deploy on sensor fail alone without timeout"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.ROLL_FAIL
-                                      | mavlink.PITCH_FAIL),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -374,7 +377,7 @@ def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
         "Expected no deploy on FC reboot while armed without sensor failure"
 
     assert_ats_status(tester,
-                      expected_flags=mavlink.REBOOTED_WHILE_ARMED,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED,
                       expected_fc_state=ATSTester.FC_STATE_DISARMED)
 
 
@@ -396,9 +399,9 @@ def test_nodeploy_reboot_disarmed(tester: ATSTester):
         "Expected no deploy on FC reboot while disarmed"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.ROLL_FAIL
-                                      | mavlink.PITCH_FAIL),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_fc_state=ATSTester.FC_STATE_DISARMED)
 
 
@@ -420,9 +423,9 @@ def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
         "Expected no deploy on time_boot_ms drop smaller than 10 s threshold"
 
     assert_ats_status(tester,
-                      expected_flags=(mavlink.ACCEL_NORM_FAIL
-                                      | mavlink.ROLL_FAIL
-                                      | mavlink.PITCH_FAIL),
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
 
 
@@ -462,8 +465,8 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(tester: ATSTester):
     assert tester.verify_no_deploy(duration_s=3.0), \
         "Expected no deploy when all voltages low (UPS unreliable)"
 
-    # No sensor thresholds exceeded, and UPS unhealthy blocks the voltage
-    # path → no flags at all.
+    # Power loss should be flagged, but not deploy parachute since UPS is unhealthy
     assert_ats_status(tester,
-                      expected_flags=0,
+                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
                       expected_fc_state=ATSTester.FC_STATE_ARMED)
