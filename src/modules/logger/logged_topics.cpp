@@ -46,8 +46,8 @@ using namespace px4::logger;
 void LoggedTopics::add_default_topics()
 {
 	// Critical input/output of ATS
-	add_topic("adc_report");  // Power loss detection, smaller message than battery_status
-	add_topic("aviant_ats");  // ATS status
+	add_topic("aviant_ats");  // ATS status, 200Hz
+	add_topic("ats_voltage_measurements");  // Power loss detection, 100Hz
 	add_topic("external_aviant_detailed_fc_state");  // Connection loss detection, 30Hz
 	add_topic("vehicle_attitude");  // Roll/pitch detection, 100Hz
 	add_topic("vehicle_command");  // Commands, event-driven
@@ -55,7 +55,8 @@ void LoggedTopics::add_default_topics()
 	add_topic("vehicle_local_position");  // Free-fall detection, 100Hz
 
 	// Useful
-	add_topic("external_ins_attitude", 0);  // For attitude comparison
+	add_topic("adc_report", 100);  // Power loss detection, input to voltage measurement module
+	add_topic("external_ins_attitude", 100);  // For attitude comparison
 	add_topic("battery_status", 100, 0);  // UPS voltage, parachute temperature
 	add_topic("battery_status", 100, 1);  // Power loss detection
 	add_topic("external_vehicle_status", 100);  // Autopilot arming state
