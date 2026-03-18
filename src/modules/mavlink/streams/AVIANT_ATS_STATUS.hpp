@@ -57,6 +57,8 @@ private:
 				ats.timestamp / 1000U,
 				ats.fc_state,
 				flags,
+				ats.power_loss_trigger_enabled,
+				ats.ats_active,
 				ats.main_power1_v,
 				ats.main_power2_v,
 				ats.ups_v

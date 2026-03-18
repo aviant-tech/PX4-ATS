@@ -17,5 +17,8 @@ bool fc_rebooted_while_armed
 bool ups_healthy
 bool main_voltage_fail
 
+bool power_loss_trigger_enabled
+bool ats_active
+
 bool maybe_parachute_deploy
 bool parachute_deploy

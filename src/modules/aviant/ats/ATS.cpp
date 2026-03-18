@@ -158,12 +158,14 @@ ATS::Run()
 	_deployment_hysteresis.set_state_and_update(_aviant_ats.maybe_parachute_deploy, hrt_absolute_time());
 	_aviant_ats.parachute_deploy = _deployment_hysteresis.get_state();
 
+	_aviant_ats.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
+
 	// We don't have time to wait for the hysteresis in a power loss scenario,
 	// since the parachute capacitor can discharge in as little as 30ms.
 	// See: https://aviant.atlassian.net/wiki/x/AQDdew
 	if (
 		(
-			_params_av_ats_v_en.get()
+			_aviant_ats.power_loss_trigger_enabled
 			&& _aviant_ats.ups_healthy
 			&& _aviant_ats.main_voltage_fail
 		)
@@ -179,9 +181,11 @@ ATS::Run()
 		_aviant_ats.parachute_deploy = true;
 	}
 
+	_aviant_ats.ats_active = static_cast<bool>(_params_av_ats_active.get());
+
 	if (_aviant_ats.parachute_deploy) {
 		if (!_parachute_command_sent) {
-			if (_params_av_ats_active.get()) {
+			if (_aviant_ats.ats_active) {
 				// Send multiple messages in case the link is bad.
 				// We have experienced corrupted messages before
 				for (int i = 0; i < 5; i++) {
