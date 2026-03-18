@@ -50,7 +50,7 @@ private:
 	aviant_ats_s _aviant_ats{};
 
 	hrt_abstime _last_sign_of_life_from_fc{0};
-	uint8_t _last_fc_state{aviant_ats_s::FC_STATE_DISARMED};
+	bool _last_fc_armed{false};
 	bool _ups_has_been_healthy{false};
 	bool _latch_ups_unhealthy{false};
 

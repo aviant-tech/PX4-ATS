@@ -66,11 +66,10 @@ class ATSTester:
     def _send_fc_state(self) -> None:
         """Build and send one FC state message.  Caller must hold _lock."""
         msg = mavlink.MAVLink_aviant_detailed_fc_state_message(
-            self._time_boot_ms(),
-            int(time.time() * 1e6),
-            1 if self._armed else 0,
-            0,
-            self._system_status,
+            self._time_boot_ms(),  # time_boot_ms
+            int(time.time() * 1e6),  # time_unix_usec
+            1 if self._armed else 0,  # fc_armed
+            0,  # fc_flight_termination, not used in tests
         )
         self.conn.mav.send(msg)
 

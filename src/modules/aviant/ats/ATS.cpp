@@ -46,7 +46,7 @@ ATS::Run()
 		constexpr int64_t reboot_detection_threshold = 10_s;
 
 		if (fc_boot_timestamp > _last_fc_boot_timestamp + reboot_detection_threshold) {
-			if (_last_fc_state == aviant_ats_s::FC_STATE_ARMED) {
+			if (_last_fc_armed) {
 				PX4_WARN("Reboot detected while armed!");
 				_aviant_ats.fc_rebooted_while_armed = true;
 
@@ -57,18 +57,11 @@ ATS::Run()
 			// Never reset, this will only be true for one sample, but we want it to latch
 		}
 
-		if (ext_fc_state.system_status == external_aviant_detailed_fc_state_s::SYSTEM_STATUS_FLIGHT_TERMINATION) {
-			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_TERMINATED;
-
-		} else if (ext_fc_state.armed) {
-			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_ARMED;
-
-		} else {
-			_aviant_ats.fc_state = aviant_ats_s::FC_STATE_DISARMED;
-		}
+		_aviant_ats.fc_armed = ext_fc_state.armed;
+		_aviant_ats.fc_flight_termination = ext_fc_state.flight_termination;
 
 		_last_fc_boot_timestamp = fc_boot_timestamp;
-		_last_fc_state = _aviant_ats.fc_state;
+		_last_fc_armed = _aviant_ats.fc_armed;
 		_last_sign_of_life_from_fc = ext_fc_state.timestamp;
 	}
 
@@ -144,13 +137,13 @@ ATS::Run()
 					     || _aviant_ats.accel_norm_fail
 				     );
 	const bool fc_is_supposed_to_be_armed_but_is_untrustworthy = (
-				(_aviant_ats.fc_state == aviant_ats_s::FC_STATE_ARMED && _aviant_ats.fc_timeout)
+				(_aviant_ats.fc_armed && _aviant_ats.fc_timeout)
 				|| _aviant_ats.fc_rebooted_while_armed
 			);
 
 	_aviant_ats.maybe_parachute_deploy = (
-			(control_failure && fc_is_supposed_to_be_armed_but_is_untrustworthy)
-			|| _aviant_ats.fc_state == aviant_ats_s::FC_STATE_TERMINATED
+			control_failure
+			&& fc_is_supposed_to_be_armed_but_is_untrustworthy
 					     );
 
 
@@ -170,7 +163,7 @@ ATS::Run()
 			&& _aviant_ats.main_voltage_fail
 		)
 		&& (
-			_aviant_ats.fc_state != aviant_ats_s::FC_STATE_DISARMED
+			_aviant_ats.fc_armed
 			|| _aviant_ats.fc_rebooted_while_armed
 		)
 	) {
@@ -288,7 +281,7 @@ int ATS::print_status()
 {
 	PX4_INFO("Running\n");
 
-	printf("FC State: %d\n", _last_fc_state);
+	printf("FC armed: %d\n", _last_fc_armed);
 	printf("FC Timestamp: %lld\n", _last_sign_of_life_from_fc);
 	return 0;
 }

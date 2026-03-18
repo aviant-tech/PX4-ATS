@@ -1,9 +1,7 @@
 uint64 timestamp
 
-uint8 fc_state
-uint8 FC_STATE_DISARMED   = 0
-uint8 FC_STATE_ARMED      = 1
-uint8 FC_STATE_TERMINATED = 2
+bool fc_armed
+bool fc_flight_termination
 
 float32 main_power1_v
 float32 main_power2_v

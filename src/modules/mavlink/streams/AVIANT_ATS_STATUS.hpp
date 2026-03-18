@@ -55,10 +55,11 @@ private:
 			mavlink_msg_aviant_ats_status_send(
 				_mavlink->get_channel(),
 				ats.timestamp / 1000U,
-				ats.fc_state,
+				ats.fc_armed,
+				ats.fc_flight_termination,
 				flags,
 				ats.power_loss_trigger_enabled,
-				ats.ats_active,
+				ats.ats_enabled,
 				ats.main_power1_v,
 				ats.main_power2_v,
 				ats.ups_v

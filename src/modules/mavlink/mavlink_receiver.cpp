@@ -3072,8 +3072,7 @@ MavlinkReceiver::handle_message_aviant_detailed_fc_state(mavlink_message_t *msg)
 	uorb_msg.time_boot_ms = mavlink_msg.time_boot_ms;
 	uorb_msg.time_unix_usec = mavlink_msg.time_unix_usec;
 	uorb_msg.armed = mavlink_msg.armed;
-	uorb_msg.vtol_state = mavlink_msg.vtol_state;
-	uorb_msg.system_status = mavlink_msg.system_status;
+	uorb_msg.flight_termination = mavlink_msg.flight_termination;
 
 	_external_aviant_detailed_fc_state_pub.publish(uorb_msg);
 }

@@ -25,15 +25,15 @@ from ats_tester import ATSTester, mavlink
 
 
 def assert_ats_status(tester: ATSTester, expected_flags: int,
-                      expected_active_status: bool,
-                      expected_powerloss_active_status: bool,
-                      expected_fc_state: int) -> None:
+                      expected_enabled_status: bool,
+                      expected_powerloss_enabled_status: bool,
+                      expected_fc_armed: bool) -> None:
     """Validate AVIANT_ATS_STATUS flags and fc_state match expectations."""
     status = tester.get_ats_status(timeout_s=3.0)
     assert status is not None, "Did not receive AVIANT_ATS_STATUS message"
 
-    assert expected_active_status == status.ats_active, f"Expected ats_active={expected_active_status}"
-    assert expected_powerloss_active_status == status.power_loss_trigger_enabled, f"Expected power_loss_trigger_enabled={expected_powerloss_active_status}"
+    assert expected_enabled_status == status.ats_enabled, f"Expected ats_enabled={expected_enabled_status}"
+    assert expected_powerloss_enabled_status == status.power_loss_trigger_enabled, f"Expected power_loss_trigger_enabled={expected_powerloss_enabled_status}"
 
     actual_flags = status.ats_status_flags
     assert actual_flags == expected_flags, (
@@ -42,57 +42,9 @@ def assert_ats_status(tester: ATSTester, expected_flags: int,
         f"got {tester.flags_str(actual_flags)} ({actual_flags:#x})"
     )
 
-    assert status.fc_state == expected_fc_state, (
-        f"fc_state mismatch: expected {expected_fc_state}, "
-        f"got {status.fc_state}"
+    assert status.fc_armed == expected_fc_armed, (
+        f"fc_armed mismatch: expected {expected_fc_armed}, got {status.fc_armed}"
     )
-
-
-@pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_EN':    '1',
-    'PARAM_AV_ATS_TIMEOUT':   '150',
-    'PARAM_AV_ATS_ACC_NORM':  '5.0',
-    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
-    'PARAM_AV_ATS_PITCH_ANG': '60.0',
-}], indirect=True)
-def test_deploy_armed_terminated(tester: ATSTester):
-    """MAV_STATE_FLIGHT_TERMINATION causes parachute when armed """
-
-    tester.set_armed(True)
-    time.sleep(1.0)
-    tester.set_system_status(mavlink.MAV_STATE_FLIGHT_TERMINATION)
-
-    assert tester.wait_for_deploy(timeout_s=5.0), \
-        "Expected deploy when FC is MAV_STATE_FLIGHT_TERMINATION while armed"
-
-    assert_ats_status(tester,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_TERMINATED)
-
-
-@pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_EN':    '1',
-    'PARAM_AV_ATS_TIMEOUT':   '150',
-    'PARAM_AV_ATS_ACC_NORM':  '5.0',
-    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
-    'PARAM_AV_ATS_PITCH_ANG': '60.0',
-}], indirect=True)
-def test_deploy_disarmed_terminated(tester: ATSTester):
-    """MAV_STATE_FLIGHT_TERMINATION causes parachute when disarmed """
-
-    time.sleep(1.0)
-    tester.set_system_status(mavlink.MAV_STATE_FLIGHT_TERMINATION)
-
-    assert tester.wait_for_deploy(timeout_s=5.0), \
-        "Expected deploy when FC is MAV_STATE_FLIGHT_TERMINATION while disarmed"
-
-    assert_ats_status(tester,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_TERMINATED)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -116,9 +68,9 @@ def test_deploy_timeout_accel_fail(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -146,9 +98,9 @@ def test_deploy_timeout_roll_fail(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -176,9 +128,9 @@ def test_deploy_timeout_pitch_fail(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -202,9 +154,9 @@ def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_DISARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=False)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -235,9 +187,9 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY
                       | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=True,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -262,19 +214,19 @@ def test_nodeploy_disabled(tester: ATSTester):
     time.sleep(0.2)
 
     assert tester.verify_no_deploy(duration_s=3.0), \
-        "Expected no deploy when ATS is inactive"
+        "Expected no deploy when ATS is disabled"
 
     # All sensor fails + voltage fail → parachute_deploy is set in the uORB
-    # message, but no command is sent because ATS is inactive.
+    # message, but no command is sent because ATS is disabled.
     assert_ats_status(tester,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_active_status=False,
-                      expected_powerloss_active_status=True,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -305,35 +257,9 @@ def test_nodeploy_disarmed(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=True,
-                      expected_fc_state=ATSTester.FC_STATE_DISARMED)
-
-
-@pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_EN':    '0',
-    'PARAM_AV_ATS_TIMEOUT':   '150',
-    'PARAM_AV_ATS_ACC_NORM':  '5.0',
-    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
-    'PARAM_AV_ATS_PITCH_ANG': '60.0',
-}], indirect=True)
-def test_nodeploy_terminated_inactive(tester: ATSTester):
-    """MAV_STATE_FLIGHT_TERMINATION causes NO parachute when armed and inactive """
-
-    tester.set_armed(True)
-    time.sleep(1.0)
-    tester.set_system_status(mavlink.MAV_STATE_FLIGHT_TERMINATION)
-
-    assert tester.verify_no_deploy(duration_s=3.0), \
-        "Expected no deploy on MAV_STATE_FLIGHT_TERMINATION when ATS is inactive"
-
-    # Terminated path fires → parachute_deploy true in uORB, but no
-    # command because ATS is inactive.
-    assert_ats_status(tester,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY,
-                      expected_active_status=False,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_TERMINATED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=False)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -355,9 +281,9 @@ def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
 
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -385,9 +311,9 @@ def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -409,9 +335,9 @@ def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
 
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_DISARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=False)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -435,9 +361,9 @@ def test_nodeploy_reboot_disarmed(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_DISARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=False)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -461,9 +387,9 @@ def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_active_status=True,
-                      expected_powerloss_active_status=False,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=False,
+                      expected_fc_armed=True)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -506,6 +432,6 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(tester: ATSTester):
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
                       | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
-                      expected_active_status=True,
-                      expected_powerloss_active_status=True,
-                      expected_fc_state=ATSTester.FC_STATE_ARMED)
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)

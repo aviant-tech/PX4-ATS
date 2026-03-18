@@ -1121,24 +1121,14 @@ bool Logger::start_stop_logging()
 
 	} else if (_log_mode != LogMode::boot_until_shutdown) {
 		// arming-based logging
-		/* not vehicle status
-		vehicle_status_s vehicle_status;
-
-		if (_vehicle_status_sub.update(&vehicle_status)) {
-
-			desired_state = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED) ||
-					(_prev_file_log_start_state && _log_mode == LogMode::arm_until_shutdown);
-			updated = true;
-		}
-		*/
-
 
 		aviant_ats_s aviant_ats{};
 
 		if (_aviant_ats_sub.update(&aviant_ats)) {
 
 			desired_state = (
-						aviant_ats.fc_state != aviant_ats_s::FC_STATE_DISARMED
+						aviant_ats.fc_armed
+						|| aviant_ats.fc_flight_termination
 						|| aviant_ats.fc_rebooted_while_armed
 					);
 			updated = true;
