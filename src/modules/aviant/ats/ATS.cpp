@@ -181,11 +181,11 @@ ATS::Run()
 		_aviant_ats.parachute_deploy = true;
 	}
 
-	_aviant_ats.ats_active = static_cast<bool>(_params_av_ats_active.get());
+	_aviant_ats.ats_enabled = static_cast<bool>(_params_av_ats_en.get());
 
 	if (_aviant_ats.parachute_deploy) {
 		if (!_parachute_command_sent) {
-			if (_aviant_ats.ats_active) {
+			if (_aviant_ats.ats_enabled) {
 				// Send multiple messages in case the link is bad.
 				// We have experienced corrupted messages before
 				for (int i = 0; i < 5; i++) {

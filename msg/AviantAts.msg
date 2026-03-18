@@ -18,7 +18,7 @@ bool ups_healthy
 bool main_voltage_fail
 
 bool power_loss_trigger_enabled
-bool ats_active
+bool ats_enabled
 
 bool maybe_parachute_deploy
 bool parachute_deploy

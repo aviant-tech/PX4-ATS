@@ -51,9 +51,9 @@ PARAM_DEFINE_FLOAT(AV_ATS_ROLL_ANG, 80);
 PARAM_DEFINE_FLOAT(AV_ATS_PITCH_ANG, 60);
 
 /**
- * ATS active
+ * ATS enabled
  *
- * When the ATS is active, it will check the trigger conditions and
+ * When the ATS is enabled, it will check the trigger conditions and
  * command flight termination / parachute deployment
  *
  *
@@ -61,7 +61,7 @@ PARAM_DEFINE_FLOAT(AV_ATS_PITCH_ANG, 60);
  * @boolean
  * @reboot_required true
  */
-PARAM_DEFINE_INT32(AV_ATS_ACTIVE, 0);
+PARAM_DEFINE_INT32(AV_ATS_EN, 0);
 
 /**
  * ATS Main Power low voltage threshold

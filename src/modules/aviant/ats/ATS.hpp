@@ -75,7 +75,7 @@ private:
 		(ParamFloat<px4::params::AV_ATS_ACC_NORM>)  _params_av_ats_acc_norm,
 		(ParamFloat<px4::params::AV_ATS_ROLL_ANG>)  _params_av_ats_roll_ang,
 		(ParamFloat<px4::params::AV_ATS_PITCH_ANG>) _params_av_ats_pitch_ang,
-		(ParamInt<px4::params::AV_ATS_ACTIVE>)      _params_av_ats_active,
+		(ParamInt<px4::params::AV_ATS_EN>)          _params_av_ats_en,
 		(ParamFloat<px4::params::AV_ATS_MP_LOWV>)   _params_av_ats_mp_lowv,
 		(ParamFloat<px4::params::AV_ATS_UPS_LOWV>)  _params_av_ats_ups_lowv,
 		(ParamInt<px4::params::AV_ATS_V_EN>)        _params_av_ats_v_en,

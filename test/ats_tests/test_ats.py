@@ -49,7 +49,7 @@ def assert_ats_status(tester: ATSTester, expected_flags: int,
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -73,7 +73,7 @@ def test_deploy_armed_terminated(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -96,7 +96,7 @@ def test_deploy_disarmed_terminated(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -122,7 +122,7 @@ def test_deploy_timeout_accel_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -152,7 +152,7 @@ def test_deploy_timeout_roll_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -182,7 +182,7 @@ def test_deploy_timeout_pitch_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -208,7 +208,7 @@ def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -241,7 +241,7 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '0',
+    'PARAM_AV_ATS_EN':    '0',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -253,8 +253,10 @@ def test_deploy_voltage_main_low_ups_healthy(tester: ATSTester):
     'PARAM_AV_ATS_MP2_SM':     '10.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
-def test_nodeploy_inactive(tester: ATSTester):
-    """No deploy when FC is INACTIVE, even with all failures set."""
+
+
+def test_nodeploy_disabled(tester: ATSTester):
+    """No deploy when FC is DISABLED, even with all failures set."""
 
     tester.set_armed(True)
     time.sleep(0.2)
@@ -276,7 +278,7 @@ def test_nodeploy_inactive(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -309,7 +311,7 @@ def test_nodeploy_disarmed(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '0',
+    'PARAM_AV_ATS_EN':    '0',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -335,7 +337,7 @@ def test_nodeploy_terminated_inactive(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -359,7 +361,7 @@ def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '30000',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -389,7 +391,7 @@ def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
@@ -413,7 +415,7 @@ def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -439,7 +441,7 @@ def test_nodeploy_reboot_disarmed(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
@@ -465,7 +467,7 @@ def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
 
 
 @pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_ACTIVE':    '1',
+    'PARAM_AV_ATS_EN':    '1',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
