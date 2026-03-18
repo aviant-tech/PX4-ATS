@@ -1,6 +1,6 @@
 """Helper class wrapping pymavlink with ATS-specific MAVLink interactions.
 
-A background thread continuously sends AVIANT_DETAILED_FC_STATE at ~20 Hz
+A background thread continuously sends AVIANT_DETAILED_FC_STATE at ~30 Hz
 to emulate the flight controller.  Tests control the emulated FC through
 set_armed() and set_system_status(), and can simulate FC silence via
 pause_sending().
@@ -24,7 +24,7 @@ class ATSTester:
     """Drives ATS test scenarios over MAVLink and verifies deploy commands.
 
     A background thread continuously sends AVIANT_DETAILED_FC_STATE at
-    ~20 Hz.  Tests mutate the emulated FC state through set_armed() and
+    ~30 Hz.  Tests mutate the emulated FC state through set_armed() and
     set_system_status(); the background thread picks up the new values on
     the next iteration.  pause_sending() / resume_sending() simulate the
     FC going silent or coming back.
@@ -35,7 +35,7 @@ class ATSTester:
     FC_STATE_ARMED      = 1
     FC_STATE_TERMINATED = 2
 
-    _SEND_INTERVAL_S = 0.05
+    _SEND_INTERVAL_S = 1.0/30.0
 
     def __init__(self, connection: mavutil.mavlink_connection):
         self.conn = connection
