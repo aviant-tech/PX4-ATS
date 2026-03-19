@@ -27,3 +27,10 @@ param set-default MAV_1_FORWARD 1
 param set-default MAV_1_RATE 0
 param set-default MAV_1_RADIO_CTL 0
 param set-default MAV_1_FLOW_CTRL 0
+
+param set-default AV_ATS_MP1_CH 13
+param set-default AV_ATS_MP1_DV 21
+param set-default AV_ATS_MP2_CH 2
+param set-default AV_ATS_MP2_DV 21
+param set-default AV_ATS_UPS_CH 14
+param set-default AV_ATS_UPS_DV 2
