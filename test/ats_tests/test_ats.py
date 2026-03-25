@@ -53,6 +53,12 @@ def assert_ats_status(tester: ATSTester, expected_flags: int,
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_deploy_timeout_accel_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + accel_norm_fail (threshold > gravity)."""
@@ -69,7 +75,7 @@ def test_deploy_timeout_accel_fail(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 
@@ -79,6 +85,12 @@ def test_deploy_timeout_accel_fail(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '80.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_deploy_timeout_roll_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + roll_fail (threshold = 0 deg).
@@ -99,7 +111,7 @@ def test_deploy_timeout_roll_fail(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 
@@ -109,6 +121,12 @@ def test_deploy_timeout_roll_fail(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_deploy_timeout_pitch_fail(tester: ATSTester):
     """Deploy on ARMED + fc_timeout + pitch_fail (threshold = 0 deg).
@@ -129,7 +147,7 @@ def test_deploy_timeout_pitch_fail(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 
@@ -139,6 +157,12 @@ def test_deploy_timeout_pitch_fail(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
     """Deploy when FC reboots while armed and a sensor-fail condition is met."""
@@ -155,7 +179,7 @@ def test_deploy_reboot_armed_sensor_fail(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=False)
 
 
@@ -268,6 +292,12 @@ def test_nodeploy_disarmed(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
     """No deploy on ARMED + fc_timeout when no sensor-fail condition is met."""
@@ -282,7 +312,7 @@ def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT,
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 
@@ -292,6 +322,12 @@ def test_nodeploy_timeout_no_sensor_fail(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
     """No deploy on ARMED + sensor-fail when fc_timeout has not fired.
@@ -312,7 +348,7 @@ def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 
@@ -322,6 +358,12 @@ def test_nodeploy_sensor_fail_no_timeout(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '5.0',
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
     """No deploy when FC reboots while armed but no sensor-fail condition is met."""
@@ -336,7 +378,7 @@ def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
     assert_ats_status(tester,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED,
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=False)
 
 
@@ -346,6 +388,12 @@ def test_nodeploy_reboot_armed_no_sensor_fail(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_reboot_disarmed(tester: ATSTester):
     """No deploy when FC reboots while disarmed, even with failure conditions.
@@ -362,7 +410,7 @@ def test_nodeploy_reboot_disarmed(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=False)
 
 
@@ -372,6 +420,12 @@ def test_nodeploy_reboot_disarmed(tester: ATSTester):
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
 def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
     """No deploy when time_boot_ms drops by less than the 10 s threshold."""
@@ -388,7 +442,7 @@ def test_nodeploy_reboot_small_time_drop(tester: ATSTester):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_enabled_status=True,
-                      expected_powerloss_enabled_status=False,
+                      expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
 

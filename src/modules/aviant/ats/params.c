@@ -75,7 +75,7 @@ PARAM_DEFINE_INT32(AV_ATS_EN, 0);
  * @min 0
  * @max 100
  */
-PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 20.0f);
+PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 30.0f);
 
 /**
  * ATS UPS low voltage threshold
