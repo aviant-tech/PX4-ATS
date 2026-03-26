@@ -15,6 +15,7 @@
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_command_ack.h>
 
 using namespace time_literals;
 
@@ -60,7 +61,15 @@ private:
 
 	systemlib::Hysteresis _deployment_hysteresis{false};
 	systemlib::Hysteresis _ups_healthy_hysteresis{false};
-	bool _parachute_command_sent{false};
+	bool _parachute_deploy_warned{false};
+	bool _flighttermination_acked{false};
+	bool _parachute_acked{false};
+	hrt_abstime _last_flighttermination_sent{0};
+	hrt_abstime _last_parachute_sent{0};
+	static constexpr hrt_abstime DEFAULT_FLIGHTTERMINATION_INTERVAL = 10_ms;
+	static constexpr hrt_abstime DEFAULT_PARACHUTE_INTERVAL = 10_ms;
+	hrt_abstime _flighttermination_interval{DEFAULT_FLIGHTTERMINATION_INTERVAL};
+	hrt_abstime _parachute_interval{DEFAULT_PARACHUTE_INTERVAL};
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
 
@@ -68,6 +77,7 @@ private:
 	uORB::Subscription _ext_detailed_fc_state_sub{ORB_ID(external_aviant_detailed_fc_state)};
 	uORB::Subscription _vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
 
 
 	DEFINE_PARAMETERS(

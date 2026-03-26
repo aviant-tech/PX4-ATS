@@ -1,5 +1,13 @@
 #include "ATS.hpp"
 #include "drivers/drv_hrt.h"
+#pragma GCC diagnostic push
+// MAVLink intentionally ignores alignment in some places
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#include "mavlink/aviant/mavlink.h"
+#pragma GCC diagnostic pop
+#include "uORB/topics/vehicle_command.h"
+#include "uORB/topics/vehicle_command_ack.h"
 #include <math.h>
 
 using namespace time_literals;
@@ -167,7 +175,7 @@ ATS::Run()
 			|| _aviant_ats.fc_rebooted_while_armed
 		)
 	) {
-		if (!_parachute_command_sent) {
+		if (!_parachute_deploy_warned) {
 			PX4_WARN("Power loss detected, deploying immediately!");
 		}
 
@@ -177,25 +185,81 @@ ATS::Run()
 	_aviant_ats.ats_enabled = static_cast<bool>(_params_av_ats_en.get());
 
 	if (_aviant_ats.parachute_deploy) {
-		if (!_parachute_command_sent) {
-			if (_aviant_ats.ats_enabled) {
-				// Send multiple messages in case the link is bad.
-				// We have experienced corrupted messages before
-				for (int i = 0; i < 5; i++) {
-					send_parachute_command();
-					send_flighttermination_command();
-				}
-
-			} else {
-				PX4_WARN("Would have deployed, but is inactive");
+		if (_aviant_ats.ats_enabled) {
+			if (!_parachute_deploy_warned) {
+				PX4_WARN("Deploying parachute!");
+				_parachute_deploy_warned = true;
 			}
 
-			_parachute_command_sent = true;
+			vehicle_command_ack_s ack;
+
+			// Typically, there are <20 acks per flight,
+			// so allowing 20 every loop iteration should never fall behind
+			static constexpr uint8_t max_acks_per_iteration = 20;
+			uint8_t acks_checked_this_iteration = 0;
+
+			while (_vehicle_command_ack_sub.update(&ack)) {
+				if (++acks_checked_this_iteration > max_acks_per_iteration) {
+					break;  // Avoid infinite loop in case of ack spam
+				}
+
+				if (
+					ack.command == vehicle_command_s::VEHICLE_CMD_DO_FLIGHTTERMINATION
+					&& ack.source_system == _param_mav_sys_id.get()
+					&& ack.source_component == MAV_COMP_ID_AUTOPILOT1
+				) {
+					PX4_INFO("Flight termination command acknowledged (%d)", ack.result);
+
+					// We can potentially continue forever if the command is denied, but that is acceptable
+					// since the aircraft is assumed in a failure state, we should just keep trying
+					if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
+						_flighttermination_acked = true;
+					}
+
+				} else if (ack.command == vehicle_command_s::VEHICLE_CMD_DO_PARACHUTE
+					   && ack.source_system == _param_mav_sys_id.get()
+					   && ack.source_component == MAV_COMP_ID_PARACHUTE
+					  ) {
+					PX4_INFO("Parachute command acknowledged (%d)", ack.result);
+
+					// We can potentially continue forever if the command is denied, but that is acceptable
+					// since the aircraft is assumed in a failure state, we should just keep trying
+					if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
+						_parachute_acked = true;
+					}
+				}
+			}
+
+			if (!_flighttermination_acked && hrt_elapsed_time(&_last_flighttermination_sent) > _flighttermination_interval) {
+				send_flighttermination_command();
+				_last_flighttermination_sent = hrt_absolute_time();
+				_flighttermination_interval = math::min(_flighttermination_interval * 2, (hrt_abstime)500_ms);
+			}
+
+			if (!_parachute_acked && hrt_elapsed_time(&_last_parachute_sent) > _parachute_interval) {
+				send_parachute_command();
+				_last_parachute_sent = hrt_absolute_time();
+				_parachute_interval = math::min(_parachute_interval * 2, (hrt_abstime)500_ms);
+			}
+
+
+		} else if (!_parachute_deploy_warned) {
+			PX4_WARN("Would have deployed, but is inactive");
+			_parachute_deploy_warned = true;
 		}
 
 	} else {
-		_parachute_command_sent = false;
+		_parachute_deploy_warned = false;
+		_flighttermination_acked = false;
+		_parachute_acked = false;
+		_last_flighttermination_sent = 0;
+		_last_parachute_sent = 0;
+		_flighttermination_interval = DEFAULT_FLIGHTTERMINATION_INTERVAL;
+		_parachute_interval = DEFAULT_PARACHUTE_INTERVAL;
 	}
+
+	_aviant_ats.flighttermination_acked = _flighttermination_acked;
+	_aviant_ats.parachute_acked = _parachute_acked;
 
 	_aviant_ats.timestamp = hrt_absolute_time();
 	_aviant_ats_pub.publish(_aviant_ats);
@@ -212,7 +276,7 @@ void ATS::send_parachute_command()
 	// since they're part of the same aircraft
 	vcmd.target_system = vcmd.source_system;
 	vcmd.source_component = _param_mav_comp_id.get();
-	vcmd.target_component = 161; // MAV_COMP_ID_PARACHUTE
+	vcmd.target_component = MAV_COMP_ID_PARACHUTE;
 
 	uORB::Publication<vehicle_command_s> vehicle_command_pub{ORB_ID(vehicle_command)};
 	vcmd.timestamp = hrt_absolute_time();
@@ -232,7 +296,7 @@ void ATS::send_flighttermination_command()
 	// since they're part of the same aircraft
 	vcmd.target_system = vcmd.source_system;
 	vcmd.source_component = _param_mav_comp_id.get();
-	vcmd.target_component = 1;
+	vcmd.target_component = MAV_COMP_ID_AUTOPILOT1;
 
 	uORB::Publication<vehicle_command_s> vehicle_command_pub{ORB_ID(vehicle_command)};
 	vcmd.timestamp = hrt_absolute_time();

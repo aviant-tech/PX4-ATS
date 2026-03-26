@@ -20,3 +20,5 @@ bool ats_enabled
 
 bool maybe_parachute_deploy
 bool parachute_deploy
+bool flighttermination_acked
+bool parachute_acked

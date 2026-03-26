@@ -758,6 +758,8 @@ MavlinkReceiver::handle_message_command_ack(mavlink_message_t *msg)
 	command_ack.from_external = true;
 	command_ack.result_param1 = ack.progress;
 	command_ack.target_system = ack.target_system;
+	command_ack.source_system = msg->sysid;
+	command_ack.source_component = msg->compid;
 	command_ack.target_component = ack.target_component;
 
 	_cmd_ack_pub.publish(command_ack);

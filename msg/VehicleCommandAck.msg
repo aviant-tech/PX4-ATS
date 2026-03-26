@@ -29,5 +29,7 @@ uint8 result_param1					# Also used as progress[%], it can be set with the reaso
 int32 result_param2					# Additional parameter of the result, example: which parameter of MAV_CMD_NAV_WAYPOINT caused it to be denied.
 uint8 target_system
 uint16 target_component 				# Target component / mode executor
+uint8 source_system
+uint16 source_component
 
 bool from_external					# Indicates if the command came from an external source
