@@ -477,7 +477,8 @@ void Failsafe::checkStateAndMode(const hrt_abstime &time_us, const State &state,
 		CHECK_FAILSAFE(status_flags, local_position_accuracy_low, ActionOptions(Action::RTL));
 	}
 
-	CHECK_FAILSAFE(status_flags, geofence_breached, fromGfActParam(_param_gf_action.get()).cannotBeDeferred());
+	// Disabled in ATS because we don't include navigator, and therefore don't have its parameters
+	// CHECK_FAILSAFE(status_flags, geofence_breached, fromGfActParam(_param_gf_action.get()).cannotBeDeferred());
 
 	// Battery flight time remaining failsafe
 
