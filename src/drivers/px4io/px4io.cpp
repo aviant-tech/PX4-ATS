@@ -332,9 +332,6 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::PWM_SBUS_MODE>) _param_pwm_sbus_mode,
-		(ParamInt<px4::params::RC_RSSI_PWM_CHAN>) _param_rc_rssi_pwm_chan,
-		(ParamInt<px4::params::RC_RSSI_PWM_MAX>) _param_rc_rssi_pwm_max,
-		(ParamInt<px4::params::RC_RSSI_PWM_MIN>) _param_rc_rssi_pwm_min,
 		(ParamInt<px4::params::SENS_EN_THERMAL>) _param_sens_en_themal
 	)
 };
@@ -1115,17 +1112,6 @@ int PX4IO::io_publish_raw_rc()
 	/* zero the remaining fields */
 	for (unsigned i = channel_count; i < (sizeof(input_rc.values) / sizeof(input_rc.values[0])); i++) {
 		input_rc.values[i] = 0;
-	}
-
-	/* get RSSI from input channel */
-	if (_param_rc_rssi_pwm_chan.get() > 0 && _param_rc_rssi_pwm_chan.get() <= input_rc_s::RC_INPUT_MAX_CHANNELS) {
-		const auto &min = _param_rc_rssi_pwm_min.get();
-		const auto &max = _param_rc_rssi_pwm_max.get();
-
-		if (max - min != 0) {
-			int rssi = ((input_rc.values[_param_rc_rssi_pwm_chan.get() - 1] - min) * 100) / (max - min);
-			input_rc.rssi = math::constrain(rssi, 0, 100);
-		}
 	}
 
 	/* sort out the source of the values */
