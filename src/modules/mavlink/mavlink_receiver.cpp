@@ -336,6 +336,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_external_attitude(msg);
 		break;
 
+	case MAVLINK_MSG_ID_AVIANT_DETAILED_FC_STATE:
+		handle_message_aviant_detailed_fc_state(msg);
+		break;
+
 	default:
 		break;
 	}
@@ -505,18 +509,6 @@ void MavlinkReceiver::handle_message_command_both(mavlink_message_t *msg, const 
 	bool send_ack = true;
 	uint8_t result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED;
 	uint8_t progress = 0; // TODO: should be 255, 0 for backwards compatibility
-
-#if defined CONFIG_MODULES_AVIANT_ATS
-
-	if (cmd_mavlink.command == MAV_CMD_DO_PARACHUTE) {
-
-		PX4_INFO("External MAV_CMD_DO_PARACHUTE received.");
-
-		_external_vehicle_status.failsafe = true;
-		_external_vehicle_status_pub.publish(_external_vehicle_status);
-	}
-
-#endif
 
 	if (!target_ok) {
 		// Reject alien commands only if there is no forwarding or we've never seen target component before
@@ -3067,6 +3059,22 @@ MavlinkReceiver::handle_message_gimbal_device_attitude_status(mavlink_message_t 
 	gimbal_attitude_status.received_from_mavlink = true;
 
 	_gimbal_device_attitude_status_pub.publish(gimbal_attitude_status);
+}
+
+void
+MavlinkReceiver::handle_message_aviant_detailed_fc_state(mavlink_message_t *msg)
+{
+	mavlink_aviant_detailed_fc_state_t mavlink_msg;
+	mavlink_msg_aviant_detailed_fc_state_decode(msg, &mavlink_msg);
+
+	external_aviant_detailed_fc_state_s uorb_msg{};
+	uorb_msg.timestamp = hrt_absolute_time();
+	uorb_msg.time_boot_ms = mavlink_msg.time_boot_ms;
+	uorb_msg.time_unix_usec = mavlink_msg.time_unix_usec;
+	uorb_msg.armed = mavlink_msg.armed;
+	uorb_msg.flight_termination = mavlink_msg.flight_termination;
+
+	_external_aviant_detailed_fc_state_pub.publish(uorb_msg);
 }
 
 void

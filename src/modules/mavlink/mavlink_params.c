@@ -155,3 +155,17 @@ PARAM_DEFINE_INT32(MAV_HB_FORW_EN, 1);
  * @max 250
  */
 PARAM_DEFINE_INT32(MAV_RADIO_TOUT, 5);
+
+/**
+ * MAVLink shell on USB only.
+ *
+ * If enabled, the MAVLink shell (SERIAL_CONTROL) is only available
+ * on USB connections.  Set to 0 to allow the shell on all MAVLink
+ * instances.
+ * We had issues with dual MAVLink shell responses from both FC and ATS,
+ * this parameter is a quickfix for avoiding that.
+ *
+ * @boolean
+ * @group MAVLink
+ */
+PARAM_DEFINE_INT32(MAV_SHL_USBONLY, 1);

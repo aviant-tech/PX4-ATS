@@ -51,9 +51,9 @@ PARAM_DEFINE_FLOAT(AV_ATS_ROLL_ANG, 80);
 PARAM_DEFINE_FLOAT(AV_ATS_PITCH_ANG, 60);
 
 /**
- * ATS active
+ * ATS enabled
  *
- * When the ATS is active, it will check the trigger conditions and
+ * When the ATS is enabled, it will check the trigger conditions and
  * command flight termination / parachute deployment
  *
  *
@@ -61,4 +61,123 @@ PARAM_DEFINE_FLOAT(AV_ATS_PITCH_ANG, 60);
  * @boolean
  * @reboot_required true
  */
-PARAM_DEFINE_INT32(AV_ATS_ACTIVE, 0);
+PARAM_DEFINE_INT32(AV_ATS_EN, 0);
+
+/**
+ * ATS Main Power low voltage threshold
+ *
+ * Both main power rails must drop below this threshold
+ * for a low-voltage condition to be detected.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 1
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 20.0f);
+
+/**
+ * ATS UPS low voltage threshold
+ *
+ * If the UPS voltage is at or below this threshold, the
+ * voltage measurement is considered unreliable and will
+ * not trigger a parachute deploy.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 1
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_UPS_LOWV, 4.0f);
+
+/**
+ * ATS voltage-based deployment enable
+ *
+ * When enabled, the ATS will deploy the parachute if both main
+ * power rails drop below AV_ATS_MP_LOWV while the UPS voltage
+ * remains above AV_ATS_UPS_LOWV.
+ *
+ * @group Aviant
+ * @boolean
+ */
+PARAM_DEFINE_INT32(AV_ATS_V_EN, 0);
+
+/**
+ * ATS deployment hysteresis
+ *
+ * Time that the deployment condition must be continuously true
+ * before the parachute is deployed. Does not apply to voltage-based
+ * deployment which is immediate.
+ *
+ * @group Aviant
+ * @unit s
+ * @decimal 2
+ * @min 0
+ * @max 5
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_TTRI, 0.15f);
+
+/**
+ * Main Power 1 ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_MP1_CH, -1);
+
+/**
+ * Main Power 1 voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_MP1_DV, 1.0f);
+
+/**
+ * Main Power 2 ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_MP2_CH, -1);
+
+/**
+ * Main Power 2 voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_MP2_DV, 1.0f);
+
+/**
+ * UPS ADC channel
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_UPS_CH, -1);
+
+/**
+ * UPS voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);
