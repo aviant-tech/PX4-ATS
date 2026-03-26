@@ -19,6 +19,7 @@ bool power_loss_trigger_enabled
 bool ats_enabled
 
 bool maybe_parachute_deploy
-bool parachute_deploy
+bool parachute_deploy # latching
+
 bool flighttermination_acked
 bool parachute_acked

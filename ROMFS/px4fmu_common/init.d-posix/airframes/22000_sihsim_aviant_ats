@@ -10,6 +10,7 @@ PX4_SIMULATOR=${PX4_SIMULATOR:=sihsim}
 PX4_SIM_MODEL=${PX4_SIM_MODEL:=aviant_ats}
 
 param set-default MAV_TYPE 0
+param set-default MAV_COMP_ID 60
 
 param set-default SENS_EN_GPSSIM 0
 param set-default SENS_EN_BAROSIM 1

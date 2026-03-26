@@ -157,7 +157,10 @@ ATS::Run()
 
 	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
 	_deployment_hysteresis.set_state_and_update(_aviant_ats.maybe_parachute_deploy, hrt_absolute_time());
-	_aviant_ats.parachute_deploy = _deployment_hysteresis.get_state();
+
+	if (_deployment_hysteresis.get_state()) {
+		_aviant_ats.parachute_deploy = true;
+	}
 
 	_aviant_ats.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
 

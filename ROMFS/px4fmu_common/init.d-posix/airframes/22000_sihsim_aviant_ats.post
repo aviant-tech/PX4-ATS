@@ -28,5 +28,13 @@
 aviant_ats start
 ats_adc_mock start
 
+# Second MAVLink link for the parachute mock (component 161).
+
+# shellcheck disable=SC2154
+udp_parachute_port_local=$((udp_offboard_port_local + 1))
+# shellcheck disable=SC2154
+udp_parachute_port_remote=$((udp_offboard_port_remote + 1))
+mavlink start -x -u $udp_parachute_port_local -r 4000000 -f -m onboard -o $udp_parachute_port_remote
+
 # Stream ATS status on the offboard/API link so the test harness can read it.
 mavlink stream -r 5 -s AVIANT_ATS_STATUS -u ${udp_offboard_port_local:?}
