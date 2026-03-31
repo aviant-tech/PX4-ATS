@@ -199,6 +199,7 @@ class FCMock:
             ('UPS_UNHEALTHY',       mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY),
             ('REBOOTED_WHILE_ARMED',mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED),
             ('PARACHUTE_DEPLOY',    mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+            ('INTERNAL_FAILURE',    mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE),
         ]
         names = [n for n, v in _FLAG_NAMES if flags & v]
         return ' | '.join(names) if names else '(none)'

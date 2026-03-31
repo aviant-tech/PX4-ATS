@@ -52,6 +52,8 @@ private:
 
 			if (!ats.voltage.ups_healthy)         { flags |= AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY; }
 
+			if (ats.internal_failure_flags != 0)  { flags |= AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE; }
+
 			mavlink_msg_aviant_ats_status_send(
 				_mavlink->get_channel(),
 				ats.timestamp / 1000U,
