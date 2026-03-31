@@ -166,6 +166,19 @@ class FCMock:
             f"Expected DO_FLIGHTTERMINATION COMMAND_LONG within {timeout_s}s"
 
     @contextmanager
+    def expect_no_flighttermination(self, duration_s: float = 3.0):
+        """Context: drain buffer, yield, then assert NO DO_FLIGHTTERMINATION arrived."""
+        self.mav.drain()
+        yield
+        msg = self.mav.recv_until(
+            lambda m: (m.get_type() == 'COMMAND_LONG'
+                       and m.command == mavlink.MAV_CMD_DO_FLIGHTTERMINATION),
+            timeout_s=duration_s,
+        )
+        assert msg is None, \
+            "Unexpected DO_FLIGHTTERMINATION COMMAND_LONG received"
+
+    @contextmanager
     def expect_force_disarm(self, timeout_s: float = 3.0):
         """Context: drain buffer, yield, then assert force-disarm COMPONENT_ARM_DISARM arrived."""
         self.mav.drain()

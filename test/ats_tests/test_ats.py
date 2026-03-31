@@ -217,7 +217,7 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         pass
 
     # All sensor fails + voltage fail -> parachute_deploy is set in the uORB
@@ -250,7 +250,7 @@ def test_nodeploy_disarmed(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISARMED, even with all fail flags set."""
 
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         pass
 
     # Sensor fail flags are set, but disarmed blocks both the control-failure
@@ -283,7 +283,7 @@ def test_nodeploy_timeout_no_sensor_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -316,9 +316,8 @@ def test_nodeploy_sensor_fail_no_timeout(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         fc.pause_sending()
-        pass
 
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
@@ -347,7 +346,7 @@ def test_nodeploy_reboot_armed_no_sensor_fail(fc: FCMock, parachute: ParachuteMo
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         fc.simulate_fc_reboot()
 
     assert_ats_status(fc,
@@ -375,7 +374,7 @@ def test_nodeploy_reboot_disarmed(fc: FCMock, parachute: ParachuteMock):
     """
 
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         fc.simulate_fc_reboot()
 
     assert_ats_status(fc,
@@ -405,7 +404,7 @@ def test_nodeploy_reboot_small_time_drop(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         fc.boot_timestamp_s += 5
 
     assert_ats_status(fc,
@@ -440,7 +439,7 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(fc: FCMock, parachute: Parachut
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         # Set UPS low first to avoid a race where main powers are seen as low
         # while UPS is still healthy (which would trigger voltage_fail).
         # This is realistic, we will have a margin on the voltage threshold
@@ -648,7 +647,7 @@ def test_no_proxy_ack_disabled(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
         pass
 
     with parachute.expect_no_command_ack(
@@ -699,7 +698,7 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
     time.sleep(0.1)
 
     wait_time_s = 12 * 60 * 60 / 1000  # 1000 is from PX4_SIM_SPEED_FACTOR
-    with parachute.expect_no_deploy(duration_s=wait_time_s):
+    with parachute.expect_no_deploy(duration_s=wait_time_s), fc.expect_no_flighttermination(duration_s=wait_time_s):
         pass
 
     assert_ats_status(fc,
