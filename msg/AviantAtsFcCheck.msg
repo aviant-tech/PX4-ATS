@@ -1,0 +1,5 @@
+uint64 last_sign_of_life
+int32 ms_from_ats_boot_to_fc_boot
+bool armed
+bool flight_termination
+bool rebooted_while_armed
