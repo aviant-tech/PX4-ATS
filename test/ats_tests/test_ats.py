@@ -23,7 +23,7 @@ def assert_ats_status(fc: FCMock, expected_flags: int,
                       expected_powerloss_enabled_status: bool,
                       expected_fc_armed: bool) -> None:
     """Validate AVIANT_ATS_STATUS flags and fc_state match expectations."""
-    status = fc.get_ats_status(timeout_s=3.0)
+    status = fc.get_ats_status(timeout_s=0.5)
     assert status is not None, "Did not receive AVIANT_ATS_STATUS message"
 
     assert expected_enabled_status == status.ats_enabled, f"Expected ats_enabled={expected_enabled_status}"
@@ -59,7 +59,7 @@ def test_deploy_timeout_accel_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -93,7 +93,7 @@ def test_deploy_timeout_roll_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -127,7 +127,7 @@ def test_deploy_timeout_pitch_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -157,7 +157,7 @@ def test_deploy_reboot_armed_sensor_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.simulate_fc_reboot()
 
     assert_ats_status(fc,
@@ -187,7 +187,7 @@ def test_deploy_voltage_main_low_ups_healthy(fc: FCMock, parachute: ParachuteMoc
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
@@ -217,7 +217,7 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         pass
 
     # All sensor fails + voltage fail -> parachute_deploy is set in the uORB
@@ -250,7 +250,7 @@ def test_nodeploy_disarmed(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISARMED, even with all fail flags set."""
 
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         pass
 
     # Sensor fail flags are set, but disarmed blocks both the control-failure
@@ -283,7 +283,7 @@ def test_nodeploy_timeout_no_sensor_fail(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -316,7 +316,7 @@ def test_nodeploy_sensor_fail_no_timeout(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.pause_sending()
 
     assert_ats_status(fc,
@@ -346,7 +346,7 @@ def test_nodeploy_reboot_armed_no_sensor_fail(fc: FCMock, parachute: ParachuteMo
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.simulate_fc_reboot()
 
     assert_ats_status(fc,
@@ -374,7 +374,7 @@ def test_nodeploy_reboot_disarmed(fc: FCMock, parachute: ParachuteMock):
     """
 
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.simulate_fc_reboot()
 
     assert_ats_status(fc,
@@ -404,7 +404,7 @@ def test_nodeploy_reboot_small_time_drop(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.boot_timestamp_s += 5
 
     assert_ats_status(fc,
@@ -439,7 +439,7 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(fc: FCMock, parachute: Parachut
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         # Set UPS low first to avoid a race where main powers are seen as low
         # while UPS is still healthy (which would trigger voltage_fail).
         # This is realistic, we will have a margin on the voltage threshold
@@ -476,15 +476,15 @@ def test_proxy_ack_flighttermination(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     with parachute.expect_command_ack(
         command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
         result=mavlink.MAV_RESULT_ACCEPTED,
         source_component=1,
-        timeout_s=3.0,
-    ), fc.expect_flighttermination(timeout_s=3.0):
+        timeout_s=0.5,
+    ), fc.expect_flighttermination(timeout_s=0.5):
         parachute.send_flighttermination_command(target_component=1)
 
 
@@ -506,15 +506,15 @@ def test_proxy_ack_force_disarm(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     with parachute.expect_command_ack(
         command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
         result=mavlink.MAV_RESULT_ACCEPTED,
         source_component=1,
-        timeout_s=3.0,
-    ), fc.expect_force_disarm(timeout_s=3.0):
+        timeout_s=0.5,
+    ), fc.expect_force_disarm(timeout_s=0.5):
         parachute.send_force_disarm(target_component=1)
 
 
@@ -539,8 +539,8 @@ def test_no_proxy_ack_flighttermination_before_deploy(fc: FCMock, parachute: Par
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
-    ), fc.expect_flighttermination(timeout_s=2.0):
+        duration_s=1.5,
+    ), fc.expect_flighttermination(timeout_s=0.5):
         parachute.send_flighttermination_command(target_component=1)
 
 
@@ -565,8 +565,8 @@ def test_no_proxy_ack_force_disarm_before_deploy(fc: FCMock, parachute: Parachut
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
-    ), fc.expect_force_disarm(timeout_s=2.0):
+        duration_s=1.5,
+    ), fc.expect_force_disarm(timeout_s=0.5):
         parachute.send_force_disarm(target_component=1)
 
 
@@ -588,13 +588,13 @@ def test_no_proxy_ack_flighttermination_wrong_target(fc: FCMock, parachute: Para
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
+        duration_s=1.5,
     ):
         parachute.send_flighttermination_command(target_component=2)
 
@@ -618,13 +618,13 @@ def test_no_proxy_ack_regular_disarm(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
+        duration_s=1.5,
     ):
         parachute.send_disarm(target_component=1)
 
@@ -647,20 +647,20 @@ def test_no_proxy_ack_disabled(fc: FCMock, parachute: ParachuteMock):
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=3.0), fc.expect_no_flighttermination(duration_s=3.0):
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         pass
 
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
+        duration_s=1.5,
     ):
         parachute.send_flighttermination_command(target_component=1)
 
     with parachute.expect_no_command_ack(
         command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
         result=mavlink.MAV_RESULT_ACCEPTED,
-        duration_s=2.0,
+        duration_s=1.5,
     ):
         parachute.send_force_disarm(target_component=1)
 
@@ -709,6 +709,6 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
                       expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
 
-    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)

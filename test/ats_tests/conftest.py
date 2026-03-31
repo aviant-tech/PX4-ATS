@@ -211,7 +211,7 @@ def _mocks(px4):
     parachute = ParachuteMock(PARACHUTE_PORT)
 
     # Let the system settle and establish baseline state.
-    time.sleep(5.0)
+    time.sleep(2.0)
 
     yield fc, parachute
 
