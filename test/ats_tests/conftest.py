@@ -42,6 +42,10 @@ FC_PORT = 14540         # offboard remote – PX4 sends FC traffic here
 PARACHUTE_PORT = 14541  # parachute remote – PX4 sends parachute traffic here
 
 
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'slow: marks tests as slow (deselect with -m "not slow")')
+
+
 def pytest_addoption(parser):
     parser.addoption(
         '--build-dir', action='store', default=DEFAULT_BUILD_DIR,

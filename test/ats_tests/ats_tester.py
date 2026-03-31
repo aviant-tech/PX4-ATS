@@ -141,7 +141,7 @@ class FCMock:
             self.boot_timestamp_s = time.monotonic()
             self._armed = False
 
-    def set_param(self, param_id: str, value: float) -> None:
+    def set_ats_param(self, param_id: str, value: float) -> None:
         """Set a PX4 parameter via MAVLink PARAM_SET."""
         with self.mav.lock:
             self.mav.conn.mav.param_set_send(

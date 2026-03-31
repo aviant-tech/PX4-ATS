@@ -188,8 +188,8 @@ def test_deploy_voltage_main_low_ups_healthy(fc: FCMock, parachute: ParachuteMoc
     fc.set_armed(True)
     time.sleep(0.1)
     with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
-        fc.set_param('AV_ATS_MP1_SM', 10.0)
-        fc.set_param('AV_ATS_MP2_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
     assert_ats_status(fc,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY
@@ -445,10 +445,10 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(fc: FCMock, parachute: Parachut
         # while UPS is still healthy (which would trigger voltage_fail).
         # This is realistic, we will have a margin on the voltage threshold
         # ensuring measurements for a short while after the failure is detected
-        fc.set_param('AV_ATS_UPS_SM', 3.0)
+        fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
         time.sleep(0.2)  # must be more than 0.1, otherwise test becomes flaky
-        fc.set_param('AV_ATS_MP1_SM', 10.0)
-        fc.set_param('AV_ATS_MP2_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
     # Power loss should be flagged, but not deploy parachute since UPS is unhealthy
     assert_ats_status(fc,
@@ -569,3 +569,52 @@ def test_no_proxy_ack_force_disarm_before_deploy(fc: FCMock, parachute: Parachut
         duration_s=2.0,
     ), fc.expect_force_disarm(timeout_s=2.0):
         parachute.send_force_disarm(target_component=1)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':        '1',
+    'PARAM_AV_ATS_TIMEOUT':   '600000',
+    'PARAM_AV_ATS_ACC_NORM':  '20.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '0.0',
+    'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':    '50.0',
+    'PARAM_AV_ATS_MP2_SM':    '50.0',
+    'PARAM_AV_ATS_UPS_SM':    '5.0',
+    'PX4_SIM_SPEED_FACTOR':   '1000',
+}], indirect=True)
+def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
+    """No false-positive deploy after 12 simulated hours armed.
+
+    Inject failures in acc/roll/pitch, but it should not deploy since there is no timeout.
+    Timeout is adjusted for sim speed.
+
+    Runs PX4 at 1000x real-time so 12 h of simulated flight time
+    passes in ~90 s of wall-clock time.  Catches overflow bugs in
+    timers or counters that could cause spurious parachute deployment.
+
+    After the  12h, a genuine fault (power loss) is injected to
+    confirm ATS still responds correctly.
+    """
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+
+    wait_time_s = 12 * 60 * 60 / 1000  # 1000 is from PX4_SIM_SPEED_FACTOR
+    with parachute.expect_no_deploy(duration_s=wait_time_s):
+        pass
+
+    assert_ats_status(fc,
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)
+
+    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+        fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
