@@ -187,8 +187,13 @@ def test_deploy_voltage_main_low_ups_healthy(fc: FCMock, parachute: ParachuteMoc
 
     fc.set_armed(True)
     time.sleep(0.1)
-    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
+
+    # don't deploy when only one is low
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+
+    # when the other goes low too, we deploy
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
     assert_ats_status(fc,
