@@ -265,6 +265,19 @@ class ParachuteMock:
                 param3=0, param4=0, param5=0, param6=0, param7=0,
             )
 
+    def send_disarm(self, target_component: int = 1) -> None:
+        """Send MAV_CMD_COMPONENT_ARM_DISARM without force flag (param2=0)."""
+        with self.mav.lock:
+            self.mav.conn.mav.command_long_send(
+                target_system=self.SYS_ID,
+                target_component=target_component,
+                command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                confirmation=0,
+                param1=0.0,
+                param2=0.0,
+                param3=0, param4=0, param5=0, param6=0, param7=0,
+            )
+
     @contextmanager
     def expect_deploy(self, timeout_s: float = 10.0):
         """Context: drain buffer, yield, then assert DO_PARACHUTE arrived."""

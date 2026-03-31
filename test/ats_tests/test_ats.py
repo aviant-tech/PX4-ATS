@@ -571,6 +571,101 @@ def test_no_proxy_ack_force_disarm_before_deploy(fc: FCMock, parachute: Parachut
         parachute.send_force_disarm(target_component=1)
 
 
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':        '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '20.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':    '50.0',
+    'PARAM_AV_ATS_MP2_SM':    '50.0',
+    'PARAM_AV_ATS_UPS_SM':    '5.0',
+}], indirect=True)
+def test_no_proxy_ack_flighttermination_wrong_target(fc: FCMock, parachute: ParachuteMock):
+    """No proxy-ack for DO_FLIGHTTERMINATION targeting something other than the FC"""
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+        fc.pause_sending()
+
+    with parachute.expect_no_command_ack(
+        command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
+        result=mavlink.MAV_RESULT_ACCEPTED,
+        duration_s=2.0,
+    ):
+        parachute.send_flighttermination_command(target_component=2)
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':        '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '20.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':    '50.0',
+    'PARAM_AV_ATS_MP2_SM':    '50.0',
+    'PARAM_AV_ATS_UPS_SM':    '5.0',
+}], indirect=True)
+def test_no_proxy_ack_regular_disarm(fc: FCMock, parachute: ParachuteMock):
+    """No proxy-ack for a regular (non-force) disarm after parachute deploy.
+    """
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+    with parachute.expect_deploy(timeout_s=5.0), fc.expect_flighttermination(timeout_s=5.0):
+        fc.pause_sending()
+
+    with parachute.expect_no_command_ack(
+        command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+        result=mavlink.MAV_RESULT_ACCEPTED,
+        duration_s=2.0,
+    ):
+        parachute.send_disarm(target_component=1)
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':        '0',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '20.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '0.0',
+    'PARAM_AV_ATS_PITCH_ANG': '0.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':    '10.0',
+    'PARAM_AV_ATS_MP2_SM':    '10.0',
+    'PARAM_AV_ATS_UPS_SM':    '5.0',
+}], indirect=True)
+def test_no_proxy_ack_disabled(fc: FCMock, parachute: ParachuteMock):
+    """No proxy-ack when ATS is disabled, even though deploy condition is met internally."""
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+    with parachute.expect_no_deploy(duration_s=3.0):
+        pass
+
+    with parachute.expect_no_command_ack(
+        command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
+        result=mavlink.MAV_RESULT_ACCEPTED,
+        duration_s=2.0,
+    ):
+        parachute.send_flighttermination_command(target_component=1)
+
+    with parachute.expect_no_command_ack(
+        command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+        result=mavlink.MAV_RESULT_ACCEPTED,
+        duration_s=2.0,
+    ):
+        parachute.send_force_disarm(target_component=1)
+
+
 @pytest.mark.slow
 @pytest.mark.parametrize('px4', [{
     'PARAM_AV_ATS_EN':        '1',
