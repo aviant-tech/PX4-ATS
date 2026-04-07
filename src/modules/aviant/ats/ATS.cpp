@@ -1,5 +1,15 @@
 #include "ATS.hpp"
 #include "drivers/drv_hrt.h"
+#include "uORB/topics/aviant_ats.h"
+#include <cassert>
+#pragma GCC diagnostic push
+// MAVLink intentionally ignores alignment in some places
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#include "mavlink/aviant/mavlink.h"
+#pragma GCC diagnostic pop
+#include "uORB/topics/vehicle_command.h"
+#include "uORB/topics/vehicle_command_ack.h"
 #include <math.h>
 
 using namespace time_literals;
@@ -26,6 +36,190 @@ ATS::init()
 	return success;
 }
 
+aviant_ats_fc_check_s
+ATS::check_fc_state(uint8_t &internal_failure_flags)
+{
+	const aviant_ats_fc_check_s &prev = _previous_ats_state.fc;
+	external_aviant_detailed_fc_state_s fc{};
+
+	if (!_ext_detailed_fc_state_sub.copy(&fc)) {
+		if (prev.ms_from_ats_boot_to_fc_boot != 0) {
+			// This should never fail after we have an initial message
+			internal_failure_flags |= aviant_ats_s::IFAIL_DETAILED_FC_STATE;
+		}
+
+		return prev;
+	}
+
+	aviant_ats_fc_check_s result{};
+
+	const int32_t ms_since_fc_boot = static_cast<int32_t>(fc.time_boot_ms);
+	const int32_t ms_since_ats_boot = static_cast<int32_t>(fc.timestamp / 1000);
+	result.ms_from_ats_boot_to_fc_boot = ms_since_ats_boot - ms_since_fc_boot;
+
+	// Reboot while armed is only observable for one sample, so we need to latch it
+	result.rebooted_while_armed = prev.rebooted_while_armed;
+
+	static constexpr int32_t reboot_detection_threshold_ms = 10000;
+
+	if (
+		prev.ms_from_ats_boot_to_fc_boot != 0 // initialization is not reboot
+		&& result.ms_from_ats_boot_to_fc_boot > prev.ms_from_ats_boot_to_fc_boot +
+		reboot_detection_threshold_ms
+	) {
+		if (prev.armed) {
+			PX4_WARN("Reboot detected while armed!");
+			result.rebooted_while_armed = true;
+
+		} else {
+			PX4_INFO("Reboot detected, but not armed");
+		}
+	}
+
+	result.armed = fc.armed;
+	result.flight_termination = fc.flight_termination;
+	result.last_sign_of_life = fc.timestamp;
+
+	return result;
+}
+
+bool
+ATS::check_acceleration(uint8_t &internal_failure_flags)
+{
+	vehicle_acceleration_s accel;
+
+	if (!_vehicle_acceleration_sub.copy(&accel)) {
+		internal_failure_flags |= aviant_ats_s::IFAIL_VEHICLE_ACCELERATION;
+		return _previous_ats_state.accel_norm_fail;
+	}
+
+	const float accel_norm = sqrtf(
+					 accel.xyz[0] * accel.xyz[0] +
+					 accel.xyz[1] * accel.xyz[1] +
+					 accel.xyz[2] * accel.xyz[2]
+				 );
+
+	return accel_norm < _params_av_ats_acc_norm.get();
+}
+
+aviant_ats_attitude_check_s
+ATS::check_attitude(uint8_t &internal_failure_flags)
+{
+	vehicle_attitude_s attitude{};
+
+	if (!_vehicle_attitude_sub.copy(&attitude)) {
+		internal_failure_flags |= aviant_ats_s::IFAIL_VEHICLE_ATTITUDE;
+		return _previous_ats_state.attitude;
+	}
+
+	const matrix::Quatf q(attitude.q);
+	const matrix::Eulerf euler(q);
+
+	return {
+		.roll_fail = fabsf(math::degrees(euler.phi())) > _params_av_ats_roll_ang.get(),
+		.pitch_fail = fabsf(math::degrees(euler.theta())) > _params_av_ats_pitch_ang.get(),
+	};
+}
+
+aviant_ats_voltage_check_s
+ATS::check_voltages(uint8_t &internal_failure_flags)
+{
+	adc_report_s adc{};
+
+	if (!_adc_report_sub.copy(&adc)) {
+		internal_failure_flags |= aviant_ats_s::IFAIL_ADC_REPORT;
+		return _previous_ats_state.voltage;
+	}
+
+	const float mp1_v = channel_voltage(adc, _param_mp1_ch.get(), _param_mp1_div.get());
+	const float mp2_v = channel_voltage(adc, _param_mp2_ch.get(), _param_mp2_div.get());
+	const float ups_v = channel_voltage(adc, _param_ups_ch.get(), _param_ups_div.get());
+
+	// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
+	// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
+	_ups_healthy_hysteresis.set_hysteresis_time_from(false, 100_ms);
+	_ups_healthy_hysteresis.set_hysteresis_time_from(true, 100_ms);
+	_ups_healthy_hysteresis.set_state_and_update(ups_v > _params_av_ats_ups_lowv.get(), hrt_absolute_time());
+
+	aviant_ats_voltage_check_s result{};
+
+	result.main_power1_v = mp1_v;
+	result.main_power2_v = mp2_v;
+	result.ups_v = ups_v;
+
+	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
+				   && (mp2_v < _params_av_ats_mp_lowv.get());
+
+	result.ups_healthy = _ups_healthy_hysteresis.get_state();
+
+	const aviant_ats_voltage_check_s &prev = _previous_ats_state.voltage;
+
+	// Unhealthy UPS should be latching
+	if (prev.ups_has_been_healthy && !prev.ups_healthy) {
+		result.ups_healthy = false;
+	}
+
+	result.ups_has_been_healthy = prev.ups_has_been_healthy || result.ups_healthy;
+
+	return result;
+}
+
+uint8_t
+ATS::check_for_acks()
+{
+
+	// latch these states
+	uint8_t received_acks = _previous_ats_state.received_acks;
+
+	if (
+		received_acks & aviant_ats_s::RECEIVED_ACK_FLIGHTTERMINATION
+		&& received_acks & aviant_ats_s::RECEIVED_ACK_PARACHUTE
+	) {
+		return received_acks; // Nothing to do
+	}
+
+	vehicle_command_ack_s ack;
+
+	// Typically, there are <20 acks per flight,
+	// so allowing 20 every loop iteration should never fall behind
+	static constexpr uint8_t max_acks_per_iteration = 20;
+	uint8_t acks_checked_this_iteration = 0;
+
+	while (_vehicle_command_ack_sub.update(&ack)) {
+		if (++acks_checked_this_iteration > max_acks_per_iteration) {
+			break;  // Avoid infinite loop in case of ack spam
+		}
+
+		if (
+			ack.command == vehicle_command_s::VEHICLE_CMD_DO_FLIGHTTERMINATION
+			&& ack.source_system == _param_mav_sys_id.get()
+			&& ack.source_component == MAV_COMP_ID_AUTOPILOT1
+		) {
+			PX4_INFO("Flight termination command acknowledged (%d)", ack.result);
+
+			// We can potentially continue forever if the command is denied, but that is acceptable
+			// since the aircraft is assumed in a failure state, we should just keep trying
+			if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
+				received_acks &= aviant_ats_s::RECEIVED_ACK_FLIGHTTERMINATION;
+			}
+
+		} else if (ack.command == vehicle_command_s::VEHICLE_CMD_DO_PARACHUTE
+			   && ack.source_system == _param_mav_sys_id.get()
+			   && ack.source_component == MAV_COMP_ID_PARACHUTE
+			  ) {
+			PX4_INFO("Parachute command acknowledged (%d)", ack.result);
+
+			// We can potentially continue forever if the command is denied, but that is acceptable
+			// since the aircraft is assumed in a failure state, we should just keep trying
+			if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
+				received_acks &= aviant_ats_s::RECEIVED_ACK_PARACHUTE;
+			}
+		}
+	}
+
+	return received_acks;
+}
+
 void
 ATS::Run()
 {
@@ -34,171 +228,64 @@ ATS::Run()
 		return;
 	}
 
-	external_aviant_detailed_fc_state_s ext_fc_state{};
+	aviant_ats_s ats_state{0};
 
-	if (_ext_detailed_fc_state_sub.update(&ext_fc_state)) {
+	ats_state.fc              = check_fc_state(ats_state.internal_failure_flags);
+	ats_state.accel_norm_fail = check_acceleration(ats_state.internal_failure_flags);
+	ats_state.attitude        = check_attitude(ats_state.internal_failure_flags);
+	ats_state.voltage         = check_voltages(ats_state.internal_failure_flags);
 
+	ats_state.fc_timeout      = hrt_elapsed_time(&ats_state.fc.last_sign_of_life) > (_params_av_ats_timeout.get() *
+				    1000ULL);
 
-		const int64_t fc_timestamp = static_cast<int64_t>(ext_fc_state.time_boot_ms * 1000);
-		const int64_t ats_timestamp = static_cast<int64_t>(ext_fc_state.timestamp);
-		const int64_t fc_boot_timestamp = ats_timestamp - fc_timestamp;
+	ats_state.inflight_control_failure =
+		(ats_state.attitude.roll_fail || ats_state.attitude.pitch_fail || ats_state.accel_norm_fail)
+		&& ((ats_state.fc.armed && ats_state.fc_timeout) || ats_state.fc.rebooted_while_armed);
 
-		constexpr int64_t reboot_detection_threshold = 10_s;
-
-		if (fc_boot_timestamp > _last_fc_boot_timestamp + reboot_detection_threshold) {
-			if (_last_fc_armed) {
-				PX4_WARN("Reboot detected while armed!");
-				_aviant_ats.fc_rebooted_while_armed = true;
-
-			} else {
-				PX4_INFO("Reboot detected, but not armed");
-			}
-
-			// Never reset, this will only be true for one sample, but we want it to latch
-		}
-
-		_aviant_ats.fc_armed = ext_fc_state.armed;
-		_aviant_ats.fc_flight_termination = ext_fc_state.flight_termination;
-
-		_last_fc_boot_timestamp = fc_boot_timestamp;
-		_last_fc_armed = _aviant_ats.fc_armed;
-		_last_sign_of_life_from_fc = ext_fc_state.timestamp;
-	}
-
-	if (hrt_elapsed_time(&_last_sign_of_life_from_fc) > (_params_av_ats_timeout.get() * 1000ULL)) {
-		_aviant_ats.fc_timeout = true;
-
-	} else {
-		_aviant_ats.fc_timeout = false;
-	}
-
-	vehicle_acceleration_s vehicle_acceleration;
-
-	if (_vehicle_acceleration_sub.update(&vehicle_acceleration)) {
-
-		const float accel_norm = sqrtf(
-						 vehicle_acceleration.xyz[0] * vehicle_acceleration.xyz[0] +
-						 vehicle_acceleration.xyz[1] * vehicle_acceleration.xyz[1] +
-						 vehicle_acceleration.xyz[2] * vehicle_acceleration.xyz[2]
-					 );
-
-
-		_aviant_ats.accel_norm_fail = accel_norm < _params_av_ats_acc_norm.get();
-	}
-
-	vehicle_attitude_s vehicle_attitude{};
-
-	if (_vehicle_attitude_sub.update(&vehicle_attitude)) {
-
-		const matrix::Quatf q(vehicle_attitude.q);
-		const matrix::Eulerf euler(q);
-
-		const float ats_roll  = math::degrees(euler.phi());
-		const float ats_pitch = math::degrees(euler.theta());
-
-		_aviant_ats.roll_fail = (fabsf(ats_roll) > _params_av_ats_roll_ang.get());
-		_aviant_ats.pitch_fail = (fabsf(ats_pitch) > _params_av_ats_pitch_ang.get());
-	}
-
-	adc_report_s adc{};
-
-	if (_adc_report_sub.update(&adc)) {
-		_aviant_ats.main_power1_v = channel_voltage(adc, _param_mp1_ch.get(), _param_mp1_div.get());
-		_aviant_ats.main_power2_v = channel_voltage(adc, _param_mp2_ch.get(), _param_mp2_div.get());
-		_aviant_ats.ups_v         = channel_voltage(adc, _param_ups_ch.get(), _param_ups_div.get());
-
-		_aviant_ats.main_voltage_fail = (_aviant_ats.main_power1_v < _params_av_ats_mp_lowv.get())
-						&& (_aviant_ats.main_power2_v < _params_av_ats_mp_lowv.get());
-
-		// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
-		// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
-		_ups_healthy_hysteresis.set_hysteresis_time_from(false, 100_ms);
-		_ups_healthy_hysteresis.set_hysteresis_time_from(true, 100_ms);
-		_ups_healthy_hysteresis.set_state_and_update(
-			_aviant_ats.ups_v > _params_av_ats_ups_lowv.get(),
-			hrt_absolute_time()
-		);
-
-		if (!_ups_healthy_hysteresis.get_state() && _ups_has_been_healthy && !_latch_ups_unhealthy) {
-			PX4_WARN("UPS unhealthy! (latching)");
-			_latch_ups_unhealthy = true;
-		}
-
-		_aviant_ats.ups_healthy = _latch_ups_unhealthy ? false : _ups_healthy_hysteresis.get_state();
-		_ups_has_been_healthy |= _aviant_ats.ups_healthy;
-	}
-
-	// Note: Please use only variables from the _aviant_ats message to deploy the parachute,
-	// Being able to read the entire state from one ulog sample makes troubleshooting easier
-
-	const bool control_failure = (
-					     _aviant_ats.roll_fail
-					     || _aviant_ats.pitch_fail
-					     || _aviant_ats.accel_norm_fail
-				     );
-	const bool fc_is_supposed_to_be_armed_but_is_untrustworthy = (
-				(_aviant_ats.fc_armed && _aviant_ats.fc_timeout)
-				|| _aviant_ats.fc_rebooted_while_armed
-			);
-
-	_aviant_ats.maybe_parachute_deploy = (
-			control_failure
-			&& fc_is_supposed_to_be_armed_but_is_untrustworthy
-					     );
-
+	ats_state.inflight_power_failure =
+		(ats_state.voltage.ups_healthy && ats_state.voltage.main_voltage_fail)
+		&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed);
 
 	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
-	_deployment_hysteresis.set_state_and_update(_aviant_ats.maybe_parachute_deploy, hrt_absolute_time());
-	_aviant_ats.parachute_deploy = _deployment_hysteresis.get_state();
+	_deployment_hysteresis.set_state_and_update(ats_state.inflight_control_failure, hrt_absolute_time());
 
-	_aviant_ats.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
+	ats_state.parachute_deploy = _previous_ats_state.parachute_deploy || _deployment_hysteresis.get_state();
+	ats_state.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
 
-	// We don't have time to wait for the hysteresis in a power loss scenario,
-	// since the parachute capacitor can discharge in as little as 30ms.
-	// See: https://aviant.atlassian.net/wiki/x/AQDdew
-	if (
-		(
-			_aviant_ats.power_loss_trigger_enabled
-			&& _aviant_ats.ups_healthy
-			&& _aviant_ats.main_voltage_fail
-		)
-		&& (
-			_aviant_ats.fc_armed
-			|| _aviant_ats.fc_rebooted_while_armed
-		)
-	) {
-		if (!_parachute_command_sent) {
-			PX4_WARN("Power loss detected, deploying immediately!");
-		}
-
-		_aviant_ats.parachute_deploy = true;
+	// In case of power loss, we don't have time to wait for the hysteresis
+	if (ats_state.power_loss_trigger_enabled && ats_state.inflight_power_failure) {
+		ats_state.parachute_deploy = true;
 	}
 
-	_aviant_ats.ats_enabled = static_cast<bool>(_params_av_ats_en.get());
+	ats_state.ats_enabled = static_cast<bool>(_params_av_ats_en.get());
 
-	if (_aviant_ats.parachute_deploy) {
-		if (!_parachute_command_sent) {
-			if (_aviant_ats.ats_enabled) {
-				// Send multiple messages in case the link is bad.
-				// We have experienced corrupted messages before
-				for (int i = 0; i < 5; i++) {
-					send_parachute_command();
-					send_flighttermination_command();
-				}
+	if (ats_state.parachute_deploy) {
+		if (!_previous_ats_state.parachute_deploy) {
+			PX4_WARN(ats_state.ats_enabled ? "Deploying parachute!" : "Would have deployed parachute, but is disabled");
+		}
 
-			} else {
-				PX4_WARN("Would have deployed, but is inactive");
+		if (ats_state.ats_enabled) {
+			ats_state.received_acks = check_for_acks();
+
+			if (!(ats_state.received_acks & aviant_ats_s::RECEIVED_ACK_FLIGHTTERMINATION)
+			    && hrt_elapsed_time(&_last_flighttermination_sent) > _flighttermination_interval) {
+				send_flighttermination_command();
+				_last_flighttermination_sent = hrt_absolute_time();
+				_flighttermination_interval = math::min(_flighttermination_interval * 2, (hrt_abstime)500_ms);
 			}
 
-			_parachute_command_sent = true;
+			if (!(ats_state.received_acks & aviant_ats_s::RECEIVED_ACK_PARACHUTE)
+			    && hrt_elapsed_time(&_last_parachute_sent) > _parachute_interval) {
+				send_parachute_command();
+				_last_parachute_sent = hrt_absolute_time();
+				_parachute_interval = math::min(_parachute_interval * 2, (hrt_abstime)500_ms);
+			}
 		}
-
-	} else {
-		_parachute_command_sent = false;
 	}
 
-	_aviant_ats.timestamp = hrt_absolute_time();
-	_aviant_ats_pub.publish(_aviant_ats);
+	ats_state.timestamp = hrt_absolute_time();
+	_aviant_ats_pub.publish(ats_state);
+	_previous_ats_state = ats_state;
 }
 
 void ATS::send_parachute_command()
@@ -212,7 +299,7 @@ void ATS::send_parachute_command()
 	// since they're part of the same aircraft
 	vcmd.target_system = vcmd.source_system;
 	vcmd.source_component = _param_mav_comp_id.get();
-	vcmd.target_component = 161; // MAV_COMP_ID_PARACHUTE
+	vcmd.target_component = MAV_COMP_ID_PARACHUTE;
 
 	uORB::Publication<vehicle_command_s> vehicle_command_pub{ORB_ID(vehicle_command)};
 	vcmd.timestamp = hrt_absolute_time();
@@ -232,7 +319,7 @@ void ATS::send_flighttermination_command()
 	// since they're part of the same aircraft
 	vcmd.target_system = vcmd.source_system;
 	vcmd.source_component = _param_mav_comp_id.get();
-	vcmd.target_component = 1;
+	vcmd.target_component = MAV_COMP_ID_AUTOPILOT1;
 
 	uORB::Publication<vehicle_command_s> vehicle_command_pub{ORB_ID(vehicle_command)};
 	vcmd.timestamp = hrt_absolute_time();
@@ -279,10 +366,7 @@ int ATS::task_spawn(int argc, char *argv[])
 
 int ATS::print_status()
 {
-	PX4_INFO("Running\n");
-
-	printf("FC armed: %d\n", _last_fc_armed);
-	printf("FC Timestamp: %lld\n", _last_sign_of_life_from_fc);
+	PX4_INFO("Running, check uorb topic for state\n");
 	return 0;
 }
 

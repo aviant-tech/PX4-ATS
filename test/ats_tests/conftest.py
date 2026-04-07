@@ -7,9 +7,11 @@ ATS parameters are passed as environment variables to the PX4 process.
 The airframe .post script reads them and applies ``param set`` before
 starting the aviant_ats module.
 
-The ATS module receives FC state via the AVIANT_DETAILED_FC_STATE
-custom MAVLink message, which populates the
-external_aviant_detailed_fc_state uORB topic.
+Two separate MAVLink connections are established, each on its own
+``udpin`` port backed by a dedicated PX4 MAVLink link:
+  * **fc** (component 1) on the offboard link – feeds FC state to ATS.
+  * **parachute** (component 161) on the parachute link – publishes
+    heartbeats and sends/receives commands.
 """
 
 from __future__ import annotations
@@ -34,11 +36,14 @@ import time
 
 import psutil
 import pytest
-from pymavlink import mavutil
+from ats_tester import FCMock, ParachuteMock
 
-from ats_tester import ATSTester
+FC_PORT = 14540         # offboard remote – PX4 sends FC traffic here
+PARACHUTE_PORT = 14541  # parachute remote – PX4 sends parachute traffic here
 
-MAV_PORT = 14540
+
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'slow: marks tests as slow (deselect with -m "not slow")')
 
 
 def pytest_addoption(parser):
@@ -47,10 +52,6 @@ def pytest_addoption(parser):
         help='Path to the px4_sitl_ats build directory',
     )
 
-
-# ------------------------------------------------------------------
-# PX4 lifecycle helpers
-# ------------------------------------------------------------------
 
 def _kill_existing_px4():
     for proc in psutil.process_iter(['name']):
@@ -155,10 +156,6 @@ def _start_px4(build_dir: str,
     return instance
 
 
-# ------------------------------------------------------------------
-# Fixtures
-# ------------------------------------------------------------------
-
 @pytest.fixture()
 def px4(request):
     """Start a fresh PX4 SITL for each test, with optional ATS params.
@@ -185,45 +182,50 @@ def px4(request):
 
 
 @pytest.fixture()
-def tester(px4):
-    """Provide an ATSTester connected to the running PX4 instance.
+def _mocks(px4):
+    """Create FC and parachute mocks with separate MAVLink connections.
 
-    Blocks until EKF2 achieves tilt alignment (publishes vehicle_attitude)
-    so that sensor-dependent ATS triggers work reliably.  In SIH the high
-    simulated IMU noise makes this take ~30 s.
+    Each mock binds its own ``udpin`` port (with the correct
+    source_component) and waits for a PX4 heartbeat.  PX4 runs two
+    MAVLink links: the offboard link (remote port ``FC_PORT``) and a
+    dedicated parachute link (remote port ``PARACHUTE_PORT``).
 
-    Uses AVIANT_DETAILED_FC_STATE to feed FC state to the ATS module.
+    Blocks until EKF2 achieves tilt alignment (publishes
+    vehicle_attitude) so that sensor-dependent ATS triggers work
+    reliably.
     """
     time.sleep(1)
 
-    conn = mavutil.mavlink_connection(
-        f'udpin:0.0.0.0:{MAV_PORT}',
-        source_system=1,
-        source_component=2,
-    )
-
-    conn.wait_heartbeat(timeout=15)
+    fc = FCMock(FC_PORT)
 
     # Wait for EKF2 tilt alignment.  The ATTITUDE MAVLink message is only
     # sent once EKF2 publishes vehicle_attitude (requires tilt_align=true).
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
-        msg = conn.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
+        msg = fc.conn.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
         if msg is not None:
             break
     else:
         raise TimeoutError('EKF2 did not achieve tilt alignment within 60 s')
 
-    t = ATSTester(conn)
+    parachute = ParachuteMock(PARACHUTE_PORT)
 
-    # Background thread is already sending (disarmed, MAV_STATE_ACTIVE).
     # Let the system settle and establish baseline state.
-    time.sleep(5.0)
+    time.sleep(2.0)
 
-    # Drain any stale COMMAND_LONG messages from the boot period.
-    t._drain_command_long()
+    yield fc, parachute
 
-    yield t
+    fc.shutdown()
+    parachute.shutdown()
 
-    t.shutdown()
-    conn.close()
+
+@pytest.fixture()
+def fc(_mocks):
+    """FCMock (component 1) connected to the running PX4 instance."""
+    return _mocks[0]
+
+
+@pytest.fixture()
+def parachute(_mocks):
+    """ParachuteMock (component 161) connected to the running PX4 instance."""
+    return _mocks[1]

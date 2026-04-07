@@ -53,6 +53,9 @@ set(msg_files
 	ArmingCheckRequest.msg
 	AutotuneAttitudeControlStatus.msg
 	AviantAts.msg
+	AviantAtsAttitudeCheck.msg
+	AviantAtsFcCheck.msg
+	AviantAtsVoltageCheck.msg
 	AviantNavigation.msg
 	BatteryStatus.msg
 	Buffer128.msg

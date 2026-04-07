@@ -1,0 +1,6 @@
+float32 main_power1_v
+float32 main_power2_v
+float32 ups_v
+bool main_voltage_fail
+bool ups_healthy
+bool ups_has_been_healthy

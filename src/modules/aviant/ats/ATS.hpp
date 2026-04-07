@@ -15,6 +15,7 @@
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_command_ack.h>
 
 using namespace time_literals;
 
@@ -45,22 +46,25 @@ public:
 
 private:
 
-	float channel_voltage(const adc_report_s &adc, int32_t channel, float divider);
+	aviant_ats_s _previous_ats_state{0};
 
-	aviant_ats_s _aviant_ats{};
+	uint8_t check_for_acks();
 
-	hrt_abstime _last_sign_of_life_from_fc{0};
-	bool _last_fc_armed{false};
-	bool _ups_has_been_healthy{false};
-	bool _latch_ups_unhealthy{false};
+	aviant_ats_fc_check_s check_fc_state(uint8_t &internal_failure_flags);
+	bool check_acceleration(uint8_t &internal_failure_flags);
+	aviant_ats_attitude_check_s check_attitude(uint8_t &internal_failure_flags);
+	aviant_ats_voltage_check_s check_voltages(uint8_t &internal_failure_flags);
 
-	// start at max, so that the first delta is negative.
-	// otherwise the first ts may be interpreted as a "reboot" if the time from ats boot to first message is large
-	int64_t _last_fc_boot_timestamp{INT64_MAX};
+	static float channel_voltage(const adc_report_s &adc, int32_t channel, float divider);
 
 	systemlib::Hysteresis _deployment_hysteresis{false};
 	systemlib::Hysteresis _ups_healthy_hysteresis{false};
-	bool _parachute_command_sent{false};
+
+	hrt_abstime _last_flighttermination_sent{0};
+	hrt_abstime _last_parachute_sent{0};
+
+	hrt_abstime _flighttermination_interval{10_ms};
+	hrt_abstime _parachute_interval{10_ms};
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
 
@@ -68,6 +72,7 @@ private:
 	uORB::Subscription _ext_detailed_fc_state_sub{ORB_ID(external_aviant_detailed_fc_state)};
 	uORB::Subscription _vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
 
 
 	DEFINE_PARAMETERS(

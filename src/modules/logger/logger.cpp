@@ -1127,9 +1127,9 @@ bool Logger::start_stop_logging()
 		if (_aviant_ats_sub.update(&aviant_ats)) {
 
 			desired_state = (
-						aviant_ats.fc_armed
-						|| aviant_ats.fc_flight_termination
-						|| aviant_ats.fc_rebooted_while_armed
+						aviant_ats.fc.armed
+						|| aviant_ats.fc.flight_termination
+						|| aviant_ats.fc.rebooted_while_armed
 					);
 			updated = true;
 		}

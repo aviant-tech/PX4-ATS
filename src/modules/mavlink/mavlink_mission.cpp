@@ -278,6 +278,10 @@ MavlinkMissionManager::send_mission_ack(uint8_t sysid, uint8_t compid, uint8_t t
 void
 MavlinkMissionManager::send_mission_current(uint16_t seq)
 {
+
+	// ATS can confuse the GCS by sending this with index 0
+	return;
+
 	mavlink_mission_current_t wpc{};
 	wpc.seq = seq;
 	wpc.total = _count[MAV_MISSION_TYPE_MISSION] > 0 ? _count[MAV_MISSION_TYPE_MISSION] : UINT16_MAX;

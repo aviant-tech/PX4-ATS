@@ -511,6 +511,47 @@ void MavlinkReceiver::handle_message_command_both(mavlink_message_t *msg, const 
 	uint8_t progress = 0; // TODO: should be 255, 0 for backwards compatibility
 
 	if (!target_ok) {
+		// Ack terminate/disarm commands on behalf of the autopilot
+		// when the ATS has deployed the parachute
+		// (the FC may be unable to ack itself, and the parachute waits for ack)
+		if (
+			cmd_mavlink.target_system == mavlink_system.sysid
+			&& cmd_mavlink.target_component == MAV_COMP_ID_AUTOPILOT1
+			&& vehicle_command.source_system == mavlink_system.sysid
+			&& vehicle_command.source_component == MAV_COMP_ID_PARACHUTE
+		) {
+			const bool is_flighttermination = (cmd_mavlink.command == MAV_CMD_DO_FLIGHTTERMINATION);
+			const bool is_force_disarm = (cmd_mavlink.command == MAV_CMD_COMPONENT_ARM_DISARM
+						      && static_cast<int>(cmd_mavlink.param1) == 0
+						      && static_cast<int>(cmd_mavlink.param2) == 21196  // Force disarm
+						     );
+
+			if (is_flighttermination || is_force_disarm) {
+				aviant_ats_s ats{};
+
+				if (_aviant_ats_sub.copy(&ats) && ats.ats_enabled && ats.parachute_deploy) {
+					PX4_WARN("Acked %d on behalf of autopilot", cmd_mavlink.command);
+
+					mavlink_command_ack_t ack{};
+					ack.command = cmd_mavlink.command;
+					ack.result = MAV_RESULT_ACCEPTED;
+					ack.target_system = msg->sysid;
+					ack.target_component = msg->compid;
+
+					mavlink_message_t ack_msg{};
+					mavlink_msg_command_ack_encode_chan(
+						mavlink_system.sysid,
+						cmd_mavlink.target_component,
+						_mavlink->get_channel(),
+						&ack_msg, &ack);
+					_mavlink_resend_uart(_mavlink->get_channel(), &ack_msg);
+					// It's safe to return here, we know the autopilot gets the command.
+					// MAVLink forwarding happens in another unrelated code path
+					return;
+				}
+			}
+		}
+
 		// Reject alien commands only if there is no forwarding or we've never seen target component before
 		if (!_mavlink->get_forwarding_on()
 		    || !_mavlink->component_was_seen(cmd_mavlink.target_system, cmd_mavlink.target_component, _mavlink)) {
@@ -758,6 +799,8 @@ MavlinkReceiver::handle_message_command_ack(mavlink_message_t *msg)
 	command_ack.from_external = true;
 	command_ack.result_param1 = ack.progress;
 	command_ack.target_system = ack.target_system;
+	command_ack.source_system = msg->sysid;
+	command_ack.source_component = msg->compid;
 	command_ack.target_component = ack.target_component;
 
 	_cmd_ack_pub.publish(command_ack);
