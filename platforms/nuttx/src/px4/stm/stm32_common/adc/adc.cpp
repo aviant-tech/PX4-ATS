@@ -133,11 +133,19 @@ int px4_arch_adc_init(uint32_t base_address)
 
 #endif
 
-	/* arbitrarily configure all channels for 55 cycle sample time */
-	rSMPR1(base_address) = 0b00000011011011011011011011011011;
-	rSMPR2(base_address) = 0b00011011011011011011011011011011;
-
-	/* XXX for F2/4, might want to select 12-bit mode? */
+	/* Disable the ADC and clear stale status flags BEFORE writing SMPR.
+	 *
+	 * On STM32F2/F4, SMPR1/SMPR2 must be written with ADON=0; writes while
+	 * ADON=1 are not defined by the reference manual and are observed to be
+	 * silently dropped. If a previous owner of the ADC (the bootloader,
+	 * NuttX's own stm32_adc.c, or a prior run of PX4 across a warm reset)
+	 * left the peripheral enabled, the SMPR writes below would be ineffective
+	 * and the ADC would run with whatever sampling time was previously
+	 * configured - typically the 3-cycle reset default (~143 ns at 21 MHz).
+	 * That is far too short for the tens-of-kΩ source impedance of a typical
+	 * power-brick voltage divider, and causes high-impedance channels to
+	 * read residue from the preceding channel in the scan.
+	 */
 	rCR1(base_address) = 0;
 
 	/* enable the temperature sensor / Vrefint channel if supported*/
@@ -146,7 +154,13 @@ int px4_arch_adc_init(uint32_t base_address)
 		/* enable the temperature sensor in CR2 */
 		ADC_CR2_TSVREFE |
 #endif
-		0;
+		0;  /* ADON cleared here */
+	rSR(base_address) = 0;  /* rc_w0: clears any stale OVR/STRT/EOC */
+	px4_usleep(10);         /* let ADON=0 settle before touching SMPR */
+
+	/* arbitrarily configure all channels for 55 cycle sample time */
+	rSMPR1(base_address) = 0b00000011011011011011011011011011;
+	rSMPR2(base_address) = 0b00011011011011011011011011011011;
 
 	/* Soc have CCR */
 #ifdef STM32_ADC_CCR
