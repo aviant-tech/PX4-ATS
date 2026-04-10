@@ -134,6 +134,7 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	const float mp1_v = channel_voltage(adc, _param_mp1_ch.get(), _param_mp1_div.get());
 	const float mp2_v = channel_voltage(adc, _param_mp2_ch.get(), _param_mp2_div.get());
 	const float ups_v = channel_voltage(adc, _param_ups_ch.get(), _param_ups_div.get());
+	const float parachute_v = channel_voltage(adc, _param_para_ch.get(), _param_para_div.get());
 
 	// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
 	// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
@@ -146,6 +147,7 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.main_power1_v = mp1_v;
 	result.main_power2_v = mp2_v;
 	result.ups_v = ups_v;
+	result.parachute_v = parachute_v;
 
 	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
 				   && (mp2_v < _params_av_ats_mp_lowv.get());

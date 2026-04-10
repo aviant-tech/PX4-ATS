@@ -19,11 +19,14 @@
 [ -n "$PARAM_AV_ATS_MP2_DV" ]  && param set AV_ATS_MP2_DV  $PARAM_AV_ATS_MP2_DV
 [ -n "$PARAM_AV_ATS_UPS_CH" ]  && param set AV_ATS_UPS_CH  $PARAM_AV_ATS_UPS_CH
 [ -n "$PARAM_AV_ATS_UPS_DV" ]  && param set AV_ATS_UPS_DV  $PARAM_AV_ATS_UPS_DV
+[ -n "$PARAM_AV_ATS_PARA_CH" ]  && param set AV_ATS_PARA_CH  $PARAM_AV_ATS_PARA_CH
+[ -n "$PARAM_AV_ATS_PARA_DV" ]  && param set AV_ATS_PARA_DV  $PARAM_AV_ATS_PARA_DV
 
 # Simulated voltages (ADC mock only)
 [ -n "$PARAM_AV_ATS_MP1_SM" ] && param set AV_ATS_MP1_SM $PARAM_AV_ATS_MP1_SM
 [ -n "$PARAM_AV_ATS_MP2_SM" ] && param set AV_ATS_MP2_SM $PARAM_AV_ATS_MP2_SM
 [ -n "$PARAM_AV_ATS_UPS_SM" ] && param set AV_ATS_UPS_SM $PARAM_AV_ATS_UPS_SM
+[ -n "$PARAM_AV_ATS_PARA_SM" ] && param set AV_ATS_PARA_SM $PARAM_AV_ATS_PARA_SM
 
 aviant_ats start
 ats_adc_mock start

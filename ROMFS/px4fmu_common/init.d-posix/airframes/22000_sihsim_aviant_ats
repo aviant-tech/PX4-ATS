@@ -29,5 +29,7 @@ param set-default AV_ATS_MP2_CH 1
 param set-default AV_ATS_MP2_DV 10.0
 param set-default AV_ATS_UPS_CH 2
 param set-default AV_ATS_UPS_DV 5.0
+param set-default AV_ATS_PARA_CH 3
+param set-default AV_ATS_PARA_DV 10.0
 
 param set SIH_VEHICLE_TYPE 0

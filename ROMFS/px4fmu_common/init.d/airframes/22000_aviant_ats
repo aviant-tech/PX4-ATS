@@ -34,3 +34,5 @@ param set-default AV_ATS_MP2_CH 2
 param set-default AV_ATS_MP2_DV 21
 param set-default AV_ATS_UPS_CH 14
 param set-default AV_ATS_UPS_DV 2
+param set-default AV_ATS_PARA_CH 3
+param set-default AV_ATS_PARA_DV 11

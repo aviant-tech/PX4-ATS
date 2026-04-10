@@ -53,6 +53,7 @@ void AtsAdcMock::Run()
 		{ _param_mp1_ch.get(), _param_mp1_sim.get(), _param_mp1_div.get() },
 		{ _param_mp2_ch.get(), _param_mp2_sim.get(), _param_mp2_div.get() },
 		{ _param_ups_ch.get(), _param_ups_sim.get(), _param_ups_div.get() },
+		{ _param_para_ch.get(), _param_para_sim.get(), _param_para_div.get() },
 	};
 
 	unsigned idx = 0;

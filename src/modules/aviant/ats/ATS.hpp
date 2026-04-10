@@ -91,6 +91,8 @@ private:
 		(ParamFloat<px4::params::AV_ATS_MP2_DV>)    _param_mp2_div,
 		(ParamInt<px4::params::AV_ATS_UPS_CH>)      _param_ups_ch,
 		(ParamFloat<px4::params::AV_ATS_UPS_DV>)    _param_ups_div,
+		(ParamInt<px4::params::AV_ATS_PARA_CH>)       _param_para_ch,
+		(ParamFloat<px4::params::AV_ATS_PARA_DV>)     _param_para_div,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

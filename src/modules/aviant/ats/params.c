@@ -181,3 +181,26 @@ PARAM_DEFINE_INT32(AV_ATS_UPS_CH, -1);
  * @max 100.0
  */
 PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);
+
+/**
+ * Parachute supply ADC channel
+ *
+ * Voltage sense for the parachute (release) supply rail.
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_PARA_CH, -1);
+
+/**
+ * Parachute supply voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_PARA_DV, 1.0f);
