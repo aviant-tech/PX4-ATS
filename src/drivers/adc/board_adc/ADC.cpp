@@ -40,6 +40,7 @@
 #endif
 
 ADC::ADC(uint32_t base_address, uint32_t channels, bool publish_adc_report) :
+	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default),
 	_publish_adc_report(publish_adc_report),
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": sample")),
@@ -113,7 +114,16 @@ void ADC::Run()
 	hrt_abstime now = hrt_absolute_time();
 
 	/* scan the channel set and sample each */
+	const int32_t discard = _param_adc_dis_cnt.get();
+	const int32_t discard_mask = _param_adc_dis_chn.get();
+
 	for (unsigned i = 0; i < _channel_count; i++) {
+		if (discard > 0 && (discard_mask & (1 << _samples[i].am_channel))) {
+			for (int32_t s = 0; s < discard; s++) {
+				sample(_samples[i].am_channel); // discard: settles S&H capacitor
+			}
+		}
+
 		_samples[i].am_data = sample(_samples[i].am_channel);
 	}
 
