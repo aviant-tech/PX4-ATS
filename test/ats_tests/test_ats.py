@@ -65,7 +65,7 @@ def test_deploy_timeout_accel_fail(fc: FCMock, parachute: ParachuteMock):
 
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE  # BATTERY_STATUS timeout
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
@@ -101,7 +101,7 @@ def test_deploy_timeout_roll_fail(fc: FCMock, parachute: ParachuteMock):
 
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE  # BATTERY_STATUS timeout
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
@@ -137,7 +137,7 @@ def test_deploy_timeout_pitch_fail(fc: FCMock, parachute: ParachuteMock):
 
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE  # BATTERY_STATUS timeout
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
@@ -353,7 +353,7 @@ def test_nodeploy_timeout_no_sensor_fail(fc: FCMock, parachute: ParachuteMock):
 
     assert_ats_status(fc,
                       expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
-                      | mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE,  # BATTERY_STATUS timeout
+                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,  # FC BATTERY_STATUS missing/stale
                       expected_enabled_status=True,
                       expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
@@ -387,7 +387,7 @@ def test_nodeploy_sensor_fail_no_timeout(fc: FCMock, parachute: ParachuteMock):
 
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE  # BATTERY_STATUS timeout
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
                       expected_enabled_status=True,

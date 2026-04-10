@@ -55,7 +55,7 @@ private:
 	bool check_acceleration(uint8_t &internal_failure_flags);
 	aviant_ats_attitude_check_s check_attitude(uint8_t &internal_failure_flags);
 	aviant_ats_voltage_check_s check_voltages(uint8_t &internal_failure_flags);
-	float get_fc_battery_voltage(uint8_t &internal_failure_flags);
+	float get_fc_battery_voltage(uint8_t &ups_status_flags);
 
 	static float channel_voltage(const adc_report_s &adc, int32_t channel, float divider);
 

@@ -147,7 +147,7 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
 				   && (mp2_v < _params_av_ats_mp_lowv.get());
 
-	result.fc_battery_v = get_fc_battery_voltage(internal_failure_flags);
+	result.fc_battery_v = get_fc_battery_voltage(result.ups_status_flags);
 
 	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
 	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
@@ -172,12 +172,12 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 }
 
 float
-ATS::get_fc_battery_voltage(uint8_t &internal_failure_flags)
+ATS::get_fc_battery_voltage(uint8_t &ups_status_flags)
 {
 	external_battery_status_s bat{};
 
 	if (!_external_battery_status_sub.copy(&bat)) {
-		internal_failure_flags |= aviant_ats_s::IFAIL_NO_FC_BATTERY_STATUS;
+		ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_FC_BATTERY_MISSING;
 		return _previous_ats_state.voltage.fc_battery_v;
 	}
 
@@ -187,7 +187,7 @@ ATS::get_fc_battery_voltage(uint8_t &internal_failure_flags)
 		const hrt_abstime max_age_us = static_cast<hrt_abstime>(timeout_ms) * 1000ULL;
 
 		if (hrt_elapsed_time(&bat.timestamp) > max_age_us) {
-			internal_failure_flags |= aviant_ats_s::IFAIL_NO_FC_BATTERY_STATUS;
+			ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_FC_BATTERY_STALE;
 			return _previous_ats_state.voltage.fc_battery_v;
 		}
 	}
