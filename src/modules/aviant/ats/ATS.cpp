@@ -312,6 +312,12 @@ ATS::Run()
 				_parachute_interval = math::min(_parachute_interval * 2, (hrt_abstime)500_ms);
 			}
 		}
+
+	} else {
+		// Reset ack state if we're not deploying
+		// so an accidental ack registration early on
+		// doesn't latch and block parachute deployment later
+		ats_state.received_acks = 0;
 	}
 
 	ats_state.timestamp = hrt_absolute_time();
