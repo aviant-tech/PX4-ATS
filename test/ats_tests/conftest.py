@@ -203,7 +203,8 @@ def _mocks(px4):
     # sent once EKF2 publishes vehicle_attitude (requires tilt_align=true).
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
-        msg = fc.conn.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
+        with fc.mav.conn() as c:
+            msg = c.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
         if msg is not None:
             break
     else:

@@ -31,24 +31,43 @@ mavlink = mavutil.mavlink
 
 
 class MAVLinkInterface:
-    """Owns a ``udpin`` MAVLink connection and the machinery shared by
-    every mock: a thread-safe lock and receive helpers (drain /
-    recv_until).
+    """Owns a ``udpin`` pymavlink connection.
+
+    Use ``with iface.conn() as c`` for sends and ad-hoc receives;
+    `drain` / `recv_until` poll in short locked sections so send loops are not starved.
     """
 
     def __init__(self, port: int, component_id: int):
-        self.conn = mavutil.mavlink_connection(
+        self._conn = mavutil.mavlink_connection(
             f'udpin:0.0.0.0:{port}',
             source_system=1,
             source_component=component_id,
         )
-        self.conn.wait_heartbeat(timeout=15)
-        self.lock = threading.Lock()
+        # No background senders until the mock's __init__ returns; safe without the lock.
+        self._conn.wait_heartbeat(timeout=15)
+        self.lock = threading.RLock()
+
+    @contextmanager
+    def conn(self):
+        """``with iface.conn() as c`` yields raw pymavlink *c* under lock.
+        Please don't hold the lock too long at a time :-)
+        That would starve the send loops, which also need this lock.
+        """
+        with self.lock:
+            yield self._conn
+
+    def recv_match(self, **kwargs):
+        """Thread-safe ``recv_match``"""
+        with self.conn() as c:
+            return c.recv_match(**kwargs)
 
     def drain(self) -> None:
         """Discard all buffered messages."""
-        while self.conn.recv_match(blocking=False) is not None:
-            pass
+        while True:
+            with self.conn() as c:
+                msg = c.recv_match(blocking=False)
+            if msg is None:
+                break
 
     def recv_until(self, predicate, timeout_s: float = 5.0):
         """Read messages until *predicate(msg)* returns True or timeout.
@@ -57,13 +76,18 @@ class MAVLinkInterface:
         """
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
-            msg = self.conn.recv_match(blocking=True, timeout=0.5)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            with self.conn() as c:
+                msg = c.recv_match(blocking=True, timeout=min(0.05, remaining))
             if msg is not None and predicate(msg):
                 return msg
         return None
 
     def close(self) -> None:
-        self.conn.close()
+        with self.conn() as c:
+            c.close()
 
 
 class FCMock:
@@ -92,10 +116,6 @@ class FCMock:
         self._thread = threading.Thread(target=self._send_loop, daemon=True)
         self._thread.start()
 
-    @property
-    def conn(self):
-        return self.mav.conn
-
     def _send_loop(self) -> None:
         next_fc = time.monotonic()
         next_battery = time.monotonic()
@@ -108,43 +128,33 @@ class FCMock:
                 wait = min(wait_fc, next_battery - now)
                 self._stop_event.wait(timeout=max(0.001, wait))
                 continue
-            with self.mav.lock:
+            with self.mav.conn() as c:
                 now = time.monotonic()
                 if self._sending and now >= next_fc:
-                    self._send_fc_state()
+                    c.mav.send(mavlink.MAVLink_aviant_detailed_fc_state_message(
+                        self._time_boot_ms(),
+                        int(time.time() * 1e6),
+                        1 if self._armed else 0,
+                        0,
+                    ))
                     next_fc = now + self._FC_INTERVAL_S
                 if self._sending and now >= next_battery:
-                    self._send_battery_status()
+                    voltages = [self._BATTERY_VOLTAGE_MV] + [self._VOLT_UNUSED] * 9
+                    c.mav.send(mavlink.MAVLink_battery_status_message(
+                        0,
+                        mavlink.MAV_BATTERY_FUNCTION_ALL,
+                        mavlink.MAV_BATTERY_TYPE_UNKNOWN,
+                        32767,
+                        voltages,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                    ))
                     next_battery = now + self._BATTERY_INTERVAL_S
 
     def _time_boot_ms(self) -> int:
         return int((time.monotonic() - self.boot_timestamp_s) * 1000)
-
-    def _send_fc_state(self) -> None:
-        """Build and send one FC state message.  Caller must hold lock."""
-        msg = mavlink.MAVLink_aviant_detailed_fc_state_message(
-            self._time_boot_ms(),  # time_boot_ms
-            int(time.time() * 1e6),  # time_unix_usec
-            1 if self._armed else 0,  # fc_armed
-            0,  # fc_flight_termination
-        )
-        self.mav.conn.mav.send(msg)
-
-    def _send_battery_status(self) -> None:
-        """Send one BATTERY_STATUS. Caller must hold lock."""
-        voltages = [self._BATTERY_VOLTAGE_MV] + [self._VOLT_UNUSED] * 9
-        msg = mavlink.MAVLink_battery_status_message(
-            0,  # id
-            mavlink.MAV_BATTERY_FUNCTION_ALL,
-            mavlink.MAV_BATTERY_TYPE_UNKNOWN,
-            32767,  # INT16_MAX: unknown temperature
-            voltages,
-            -1,  # current_battery (unknown)
-            -1,  # current_consumed
-            -1,  # energy_consumed
-            -1,  # battery_remaining
-        )
-        self.mav.conn.mav.send(msg)
 
     def set_armed(self, armed: bool) -> None:
         with self.mav.lock:
@@ -178,8 +188,8 @@ class FCMock:
 
     def set_ats_param(self, param_id: str, value: float) -> None:
         """Set a PX4 parameter via MAVLink PARAM_SET."""
-        with self.mav.lock:
-            self.mav.conn.mav.param_set_send(
+        with self.mav.conn() as c:
+            c.mav.param_set_send(
                 target_system=self.SYS_ID,
                 target_component=self.ATS_COMP_ID,
                 param_id=param_id.encode('utf-8'),
@@ -189,8 +199,8 @@ class FCMock:
 
     def send_flighttermination_ack_accepted(self) -> None:
         """Publish COMMAND_ACK for DO_FLIGHTTERMINATION as the autopilot (MAV_RESULT_ACCEPTED)."""
-        with self.mav.lock:
-            self.mav.conn.mav.command_ack_send(
+        with self.mav.conn() as c:
+            c.mav.command_ack_send(
                 mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
                 mavlink.MAV_RESULT_ACCEPTED,
             )
@@ -281,14 +291,10 @@ class ParachuteMock:
         self._thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         self._thread.start()
 
-    @property
-    def conn(self):
-        return self.mav.conn
-
     def _heartbeat_loop(self) -> None:
         while not self._stop_event.is_set():
-            with self.mav.lock:
-                self.mav.conn.mav.heartbeat_send(
+            with self.mav.conn() as c:
+                c.mav.heartbeat_send(
                     mavlink.MAV_TYPE_GENERIC,
                     mavlink.MAV_AUTOPILOT_INVALID,
                     0, 0,
@@ -298,8 +304,8 @@ class ParachuteMock:
 
     def send_flighttermination_command(self, target_component: int = 1) -> None:
         """Send MAV_CMD_DO_FLIGHTTERMINATION."""
-        with self.mav.lock:
-            self.mav.conn.mav.command_long_send(
+        with self.mav.conn() as c:
+            c.mav.command_long_send(
                 target_system=self.SYS_ID,
                 target_component=target_component,
                 command=mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
@@ -310,8 +316,8 @@ class ParachuteMock:
 
     def send_force_disarm(self, target_component: int = 1) -> None:
         """Send MAV_CMD_COMPONENT_ARM_DISARM with force-disarm parameters."""
-        with self.mav.lock:
-            self.mav.conn.mav.command_long_send(
+        with self.mav.conn() as c:
+            c.mav.command_long_send(
                 target_system=self.SYS_ID,
                 target_component=target_component,
                 command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
@@ -323,8 +329,8 @@ class ParachuteMock:
 
     def send_disarm(self, target_component: int = 1) -> None:
         """Send MAV_CMD_COMPONENT_ARM_DISARM without force flag (param2=0)."""
-        with self.mav.lock:
-            self.mav.conn.mav.command_long_send(
+        with self.mav.conn() as c:
+            c.mav.command_long_send(
                 target_system=self.SYS_ID,
                 target_component=target_component,
                 command=mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
@@ -336,8 +342,8 @@ class ParachuteMock:
 
     def send_do_parachute_ack_accepted(self) -> None:
         """Publish COMMAND_ACK for DO_PARACHUTE as the parachute component (MAV_RESULT_ACCEPTED)."""
-        with self.mav.lock:
-            self.mav.conn.mav.command_ack_send(
+        with self.mav.conn() as c:
+            c.mav.command_ack_send(
                 mavlink.MAV_CMD_DO_PARACHUTE,
                 mavlink.MAV_RESULT_ACCEPTED,
             )
