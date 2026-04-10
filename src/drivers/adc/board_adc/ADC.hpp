@@ -47,6 +47,7 @@
 #include <px4_arch/adc.h>
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/module.h>
+#include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 #include <uORB/Publication.hpp>
@@ -61,7 +62,7 @@ using namespace time_literals;
 
 #define ADC_TOTAL_CHANNELS 		32
 
-class ADC : public ModuleBase<ADC>, public px4::ScheduledWorkItem
+class ADC : public ModuleBase<ADC>, public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
 	ADC(uint32_t base_address = SYSTEM_ADC_BASE, uint32_t channels = ADC_CHANNELS, bool publish_adc_report = true);
@@ -120,4 +121,8 @@ private:
 	int _5v_can1_gps1_valid_fd {-1};
 #endif
 	bool _first_run {true};
+
+	DEFINE_PARAMETERS(
+		(ParamInt<px4::params::ADC_SAMP_DISC>) _param_adc_samp_disc
+	)
 };
