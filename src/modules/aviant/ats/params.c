@@ -204,3 +204,32 @@ PARAM_DEFINE_INT32(AV_ATS_PARA_CH, -1);
  * @max 100.0
  */
 PARAM_DEFINE_FLOAT(AV_ATS_PARA_DV, 1.0f);
+
+/**
+ * ATS FC BATTERY_STATUS vs main ADC tolerance
+ *
+ * When > 0, ATS compares MAVLink-derived battery_status (FC) to the mean of
+ * the two main power ADC readings. Stale/missing BATTERY_STATUS, disconnected
+ * battery, or absolute difference above this value sets IFAIL_FC_BATTERY_STATUS
+ * only (does not affect parachute deployment). When 0, this check is off.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 2
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_BAT_V_TOL, 0.0f);
+
+/**
+ * ATS FC battery_status max age
+ *
+ * FC battery_status is considered invalid if older than this
+ * Ignored when set to 0.
+ *
+ * @group Aviant
+ * @unit ms
+ * @min 0
+ * @max 60000
+ */
+PARAM_DEFINE_INT32(AV_ATS_BAT_TOUT, 1000);

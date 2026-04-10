@@ -1,7 +1,9 @@
 """Mock components for ATS SITL testing over MAVLink.
 
 * **FCMock** (component 1 / MAV_COMP_ID_AUTOPILOT1) – flight controller.
-  A background thread sends AVIANT_DETAILED_FC_STATE at ~30 Hz.  Tests
+  A background thread sends AVIANT_DETAILED_FC_STATE at ~30 Hz and
+  BATTERY_STATUS at 10 Hz.
+  Tests
   control the emulated FC through set_armed() and set_system_status(),
   and can simulate FC silence via pause_sending().  Carries observation
   helpers for FC-targeted traffic (expect_flighttermination,
@@ -71,7 +73,10 @@ class FCMock:
     COMP_ID = 1
     ATS_COMP_ID = 60
 
-    _SEND_INTERVAL_S = 1.0 / 30.0
+    _FC_INTERVAL_S = 1.0 / 30.0
+    _BATTERY_INTERVAL_S = 1.0 / 10.0
+    _BATTERY_VOLTAGE_MV = 50000  # 50 V in cell 0 (overall pack), per MAVLink BATTERY_STATUS
+    _VOLT_UNUSED = 65535  # UINT16_MAX: unused cells
 
     def __init__(self, port: int):
         self.mav = MAVLinkInterface(port, self.COMP_ID)
@@ -92,11 +97,25 @@ class FCMock:
         return self.mav.conn
 
     def _send_loop(self) -> None:
+        next_fc = time.monotonic()
+        next_battery = time.monotonic()
         while not self._stop_event.is_set():
+            now = time.monotonic()
+            due_fc = self._sending and (now >= next_fc)
+            due_battery = now >= next_battery
+            if not due_fc and not due_battery:
+                wait_fc = (next_fc - now) if self._sending else float('inf')
+                wait = min(wait_fc, next_battery - now)
+                self._stop_event.wait(timeout=max(0.001, wait))
+                continue
             with self.mav.lock:
-                if self._sending:
+                now = time.monotonic()
+                if self._sending and now >= next_fc:
                     self._send_fc_state()
-            self._stop_event.wait(timeout=self._SEND_INTERVAL_S)
+                    next_fc = now + self._FC_INTERVAL_S
+                if self._sending and now >= next_battery:
+                    self._send_battery_status()
+                    next_battery = now + self._BATTERY_INTERVAL_S
 
     def _time_boot_ms(self) -> int:
         return int((time.monotonic() - self.boot_timestamp_s) * 1000)
@@ -108,6 +127,22 @@ class FCMock:
             int(time.time() * 1e6),  # time_unix_usec
             1 if self._armed else 0,  # fc_armed
             0,  # fc_flight_termination
+        )
+        self.mav.conn.mav.send(msg)
+
+    def _send_battery_status(self) -> None:
+        """Send one BATTERY_STATUS. Caller must hold lock."""
+        voltages = [self._BATTERY_VOLTAGE_MV] + [self._VOLT_UNUSED] * 9
+        msg = mavlink.MAVLink_battery_status_message(
+            0,  # id
+            mavlink.MAV_BATTERY_FUNCTION_ALL,
+            mavlink.MAV_BATTERY_TYPE_UNKNOWN,
+            32767,  # INT16_MAX: unknown temperature
+            voltages,
+            -1,  # current_battery (unknown)
+            -1,  # current_consumed
+            -1,  # energy_consumed
+            -1,  # battery_remaining
         )
         self.mav.conn.mav.send(msg)
 

@@ -9,7 +9,8 @@ starting the aviant_ats module.
 
 Two separate MAVLink connections are established, each on its own
 ``udpin`` port backed by a dedicated PX4 MAVLink link:
-  * **fc** (component 1) on the offboard link – feeds FC state to ATS.
+  * **fc** (component 1) on the offboard link – feeds FC state and
+    BATTERY_STATUS (10 Hz) to ATS.
   * **parachute** (component 161) on the parachute link – publishes
     heartbeats and sends/receives commands.
 """

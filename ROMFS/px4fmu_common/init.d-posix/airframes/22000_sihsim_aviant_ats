@@ -32,4 +32,7 @@ param set-default AV_ATS_UPS_DV 5.0
 param set-default AV_ATS_PARA_CH 3
 param set-default AV_ATS_PARA_DV 10.0
 
+param set-default AV_ATS_BAT_V_TOL 10.0
+param set-default AV_ATS_BAT_TOUT 150  # this is fine since SITL sends battery status at 10hz
+
 param set SIH_VEHICLE_TYPE 0

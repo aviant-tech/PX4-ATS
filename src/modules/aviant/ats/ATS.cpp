@@ -8,6 +8,7 @@
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #include "mavlink/aviant/mavlink.h"
 #pragma GCC diagnostic pop
+#include "uORB/topics/external_battery_status.h"
 #include "uORB/topics/vehicle_command.h"
 #include "uORB/topics/vehicle_command_ack.h"
 #include <math.h>
@@ -136,12 +137,6 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	const float ups_v = channel_voltage(adc, _param_ups_ch.get(), _param_ups_div.get());
 	const float parachute_v = channel_voltage(adc, _param_para_ch.get(), _param_para_div.get());
 
-	// The UPS has somewhat noisy measurements, use hysteresis to avoid unnecessary latching during boot
-	// This is acceptable because the UPS is expected to fail (drain) slowly (it's a capacitor bank)
-	_ups_healthy_hysteresis.set_hysteresis_time_from(false, 100_ms);
-	_ups_healthy_hysteresis.set_hysteresis_time_from(true, 100_ms);
-	_ups_healthy_hysteresis.set_state_and_update(ups_v > _params_av_ats_ups_lowv.get(), hrt_absolute_time());
-
 	aviant_ats_voltage_check_s result{};
 
 	result.main_power1_v = mp1_v;
@@ -152,18 +147,50 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
 				   && (mp2_v < _params_av_ats_mp_lowv.get());
 
-	result.ups_healthy = _ups_healthy_hysteresis.get_state();
+	result.fc_battery_v = get_fc_battery_voltage(internal_failure_flags);
 
-	const aviant_ats_voltage_check_s &prev = _previous_ats_state.voltage;
+	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
+	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
 
-	// Unhealthy UPS should be latching
-	if (prev.ups_has_been_healthy && !prev.ups_healthy) {
-		result.ups_healthy = false;
+	result.ups_healthy = ups_v > _params_av_ats_ups_lowv.get();
+
+	const float tol = _param_av_ats_bat_v_tol.get();
+
+	if (tol > FLT_EPSILON) {
+		if (fabsf(mp1_diff_v) > tol || fabsf(mp2_diff_v) > tol) {
+			result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_FC_MISMATCH;
+		}
+
+		if (fabsf(result.main_power1_v - result.main_power2_v) > tol) {
+			result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_MP_MISMATCH;
+		}
 	}
 
-	result.ups_has_been_healthy = prev.ups_has_been_healthy || result.ups_healthy;
-
 	return result;
+}
+
+float
+ATS::get_fc_battery_voltage(uint8_t &internal_failure_flags)
+{
+	external_battery_status_s bat{};
+
+	if (!_external_battery_status_sub.copy(&bat)) {
+		internal_failure_flags |= aviant_ats_s::IFAIL_NO_FC_BATTERY_STATUS;
+		return _previous_ats_state.voltage.fc_battery_v;
+	}
+
+	const int32_t timeout_ms = _param_av_ats_bat_tout.get();
+
+	if (timeout_ms > 0) {
+		const hrt_abstime max_age_us = static_cast<hrt_abstime>(timeout_ms) * 1000ULL;
+
+		if (hrt_elapsed_time(&bat.timestamp) > max_age_us) {
+			internal_failure_flags |= aviant_ats_s::IFAIL_NO_FC_BATTERY_STATUS;
+			return _previous_ats_state.voltage.fc_battery_v;
+		}
+	}
+
+	return bat.voltage_v;
 }
 
 uint8_t
@@ -255,7 +282,7 @@ ATS::Run()
 	ats_state.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
 
 	// In case of power loss, we don't have time to wait for the hysteresis
-	if (ats_state.power_loss_trigger_enabled && ats_state.inflight_power_failure) {
+	if (ats_state.voltage.ups_healthy && ats_state.power_loss_trigger_enabled && ats_state.inflight_power_failure) {
 		ats_state.parachute_deploy = true;
 	}
 

@@ -1781,45 +1781,31 @@ MavlinkReceiver::handle_message_battery_status(mavlink_message_t *msg)
 		return;
 	}
 
-	// external battery measurements
+	// External FC battery: republish on dedicated topic (not local battery_status).
 	mavlink_battery_status_t battery_mavlink;
 	mavlink_msg_battery_status_decode(msg, &battery_mavlink);
 
-	battery_status_s battery_status{};
-	battery_status.timestamp = hrt_absolute_time();
+	external_battery_status_s ext{};
+	ext.timestamp = hrt_absolute_time();
 
 	float voltage_sum = 0.0f;
 	uint8_t cell_count = 0;
 
+	/*
+	 * MAVlink v1 only supports up to 10 cells.
+	 * However this is fine for us since PX4 publishes a fake amount of cells as long
+	 * as it doesn't know the individual cell voltages.
+	 * If we start measuring individual cells, we must check voltages_ext here
+	 */
 	while ((cell_count < 10) && (battery_mavlink.voltages[cell_count] < UINT16_MAX)) {
-		battery_status.voltage_cell_v[cell_count] = (float)(battery_mavlink.voltages[cell_count]) / 1000.0f;
-		voltage_sum += battery_status.voltage_cell_v[cell_count];
+		voltage_sum += (float)(battery_mavlink.voltages[cell_count]) / 1000.0f;
 		cell_count++;
 	}
 
-	battery_status.voltage_v = voltage_sum;
-	battery_status.voltage_filtered_v  = voltage_sum;
-	battery_status.current_a = (float)(battery_mavlink.current_battery) / 100.0f;
-	battery_status.current_filtered_a = battery_status.current_a;
-	battery_status.remaining = (float)battery_mavlink.battery_remaining / 100.0f;
-	battery_status.discharged_mah = (float)battery_mavlink.current_consumed;
-	battery_status.cell_count = cell_count;
-	battery_status.temperature = (float)battery_mavlink.temperature;
-	battery_status.connected = true;
+	ext.voltage_v = voltage_sum;
+	ext.current_a = (float)(battery_mavlink.current_battery) / 100.0f;
 
-	// Set the battery warning based on remaining charge.
-	//  Note: Smallest values must come first in evaluation.
-	if (battery_status.remaining < _param_bat_emergen_thr.get()) {
-		battery_status.warning = battery_status_s::BATTERY_WARNING_EMERGENCY;
-
-	} else if (battery_status.remaining < _param_bat_crit_thr.get()) {
-		battery_status.warning = battery_status_s::BATTERY_WARNING_CRITICAL;
-
-	} else if (battery_status.remaining < _param_bat_low_thr.get()) {
-		battery_status.warning = battery_status_s::BATTERY_WARNING_LOW;
-	}
-
-	_battery_pub.publish(battery_status);
+	_external_battery_status_pub.publish(ext);
 }
 
 void

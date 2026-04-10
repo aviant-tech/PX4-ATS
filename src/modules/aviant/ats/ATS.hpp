@@ -11,6 +11,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/topics/adc_report.h>
 #include <uORB/topics/aviant_ats.h>
+#include <uORB/topics/external_battery_status.h>
 #include <uORB/topics/external_aviant_detailed_fc_state.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
@@ -54,11 +55,11 @@ private:
 	bool check_acceleration(uint8_t &internal_failure_flags);
 	aviant_ats_attitude_check_s check_attitude(uint8_t &internal_failure_flags);
 	aviant_ats_voltage_check_s check_voltages(uint8_t &internal_failure_flags);
+	float get_fc_battery_voltage(uint8_t &internal_failure_flags);
 
 	static float channel_voltage(const adc_report_s &adc, int32_t channel, float divider);
 
 	systemlib::Hysteresis _deployment_hysteresis{false};
-	systemlib::Hysteresis _ups_healthy_hysteresis{false};
 
 	hrt_abstime _last_flighttermination_sent{0};
 	hrt_abstime _last_parachute_sent{0};
@@ -73,6 +74,7 @@ private:
 	uORB::Subscription _vehicle_acceleration_sub{ORB_ID(vehicle_acceleration)};
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
 	uORB::Subscription _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
+	uORB::Subscription _external_battery_status_sub{ORB_ID(external_battery_status)};
 
 
 	DEFINE_PARAMETERS(
@@ -93,6 +95,8 @@ private:
 		(ParamFloat<px4::params::AV_ATS_UPS_DV>)    _param_ups_div,
 		(ParamInt<px4::params::AV_ATS_PARA_CH>)       _param_para_ch,
 		(ParamFloat<px4::params::AV_ATS_PARA_DV>)     _param_para_div,
+		(ParamFloat<px4::params::AV_ATS_BAT_V_TOL>)   _param_av_ats_bat_v_tol,
+		(ParamInt<px4::params::AV_ATS_BAT_TOUT>) 	_param_av_ats_bat_tout,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

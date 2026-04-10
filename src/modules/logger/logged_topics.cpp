@@ -53,6 +53,7 @@ void LoggedTopics::add_default_topics()
 	add_topic("vehicle_command");  // Commands, event-driven
 	add_topic("vehicle_command_ack");  // Commands ack, event-driven
 	add_topic("vehicle_local_position");  // Free-fall detection, 100Hz
+	add_topic("external_battery_status");  // For UPS status, 0.5Hz
 
 	// Useful
 	add_topic("external_ins_attitude", 100);  // For attitude comparison
