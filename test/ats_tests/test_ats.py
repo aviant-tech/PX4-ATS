@@ -476,6 +476,42 @@ def test_nodeploy_voltage_main_low_ups_unhealthy(fc: FCMock, parachute: Parachut
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
 }], indirect=True)
+def test_stops_repeating_deploy_commands_after_acks(fc: FCMock, parachute: ParachuteMock):
+    """Acking DO_PARACHUTE and DO_FLIGHTTERMINATION stops their respective retransmission."""
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
+        fc.pause_sending()
+        pass
+
+    # must be outside the following context, so the buffer is cleared properly
+    fc.send_flighttermination_ack_accepted()
+    time.sleep(1.0)
+    with fc.expect_no_flighttermination(duration_s=1.0), parachute.expect_deploy(timeout_s=1):
+        # parachute deploy should still be sent, we just acked flighttermination
+        pass
+
+    parachute.send_do_parachute_ack_accepted()
+    time.sleep(3.0)  # for some reason this needs to be 3s, otherwise it's flaky
+    # I don't know why it takes that long, but it's an acceptable timeframe for stopping resending
+    with parachute.expect_no_deploy(duration_s=1.0):
+        pass
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':        '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '20.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LOWV':   '15.0',
+    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':    '50.0',
+    'PARAM_AV_ATS_MP2_SM':    '50.0',
+    'PARAM_AV_ATS_UPS_SM':    '5.0',
+}], indirect=True)
 def test_proxy_ack_flighttermination(fc: FCMock, parachute: ParachuteMock):
     """Proxy-ack DO_FLIGHTTERMINATION targeting compid 1 after parachute deploy."""
 

@@ -200,7 +200,7 @@ ATS::check_for_acks()
 			// We can potentially continue forever if the command is denied, but that is acceptable
 			// since the aircraft is assumed in a failure state, we should just keep trying
 			if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
-				received_acks &= aviant_ats_s::RECEIVED_ACK_FLIGHTTERMINATION;
+				received_acks |= aviant_ats_s::RECEIVED_ACK_FLIGHTTERMINATION;
 			}
 
 		} else if (ack.command == vehicle_command_s::VEHICLE_CMD_DO_PARACHUTE
@@ -212,7 +212,7 @@ ATS::check_for_acks()
 			// We can potentially continue forever if the command is denied, but that is acceptable
 			// since the aircraft is assumed in a failure state, we should just keep trying
 			if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED) {
-				received_acks &= aviant_ats_s::RECEIVED_ACK_PARACHUTE;
+				received_acks |= aviant_ats_s::RECEIVED_ACK_PARACHUTE;
 			}
 		}
 	}

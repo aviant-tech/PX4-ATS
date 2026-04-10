@@ -152,6 +152,14 @@ class FCMock:
                 param_type=mavlink.MAV_PARAM_TYPE_REAL32,
             )
 
+    def send_flighttermination_ack_accepted(self) -> None:
+        """Publish COMMAND_ACK for DO_FLIGHTTERMINATION as the autopilot (MAV_RESULT_ACCEPTED)."""
+        with self.mav.lock:
+            self.mav.conn.mav.command_ack_send(
+                mavlink.MAV_CMD_DO_FLIGHTTERMINATION,
+                mavlink.MAV_RESULT_ACCEPTED,
+            )
+
     @contextmanager
     def expect_flighttermination(self, timeout_s: float = 10.0):
         """Context: drain buffer, yield, then assert DO_FLIGHTTERMINATION arrived."""
@@ -289,6 +297,14 @@ class ParachuteMock:
                 param1=0.0,
                 param2=0.0,
                 param3=0, param4=0, param5=0, param6=0, param7=0,
+            )
+
+    def send_do_parachute_ack_accepted(self) -> None:
+        """Publish COMMAND_ACK for DO_PARACHUTE as the parachute component (MAV_RESULT_ACCEPTED)."""
+        with self.mav.lock:
+            self.mav.conn.mav.command_ack_send(
+                mavlink.MAV_CMD_DO_PARACHUTE,
+                mavlink.MAV_RESULT_ACCEPTED,
             )
 
     @contextmanager
