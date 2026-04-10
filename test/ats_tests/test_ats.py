@@ -188,23 +188,74 @@ def test_deploy_reboot_armed_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
-def test_deploy_voltage_main_low_ups_healthy(fc: FCMock, parachute: ParachuteMock):
-    """Deploy when both main powers drop below threshold while UPS stays healthy."""
+def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: ParachuteMock):
+    """Deploy on dual main low even if UPS is unhealthy."""
 
     fc.set_armed(True)
     time.sleep(0.1)
 
-    # don't deploy when only one is low
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
+        # Low UPS voltage should trigger unhealthy
+        fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
+        time.sleep(0.1)
+        assert_ats_status(fc,
+                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True
+                          )
+
+        # Back to healthy
+        fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
+        time.sleep(0.1)
+        assert_ats_status(fc,
+                          expected_flags=0,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True
+                          )
+
+
+        # 30v battery is mismatch, UPS should be flagged unhealthy
+        fc._BATTERY_VOLTAGE_MV = 30000
+        time.sleep(0.1)
+        assert_ats_status(fc,
+                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True
+                          )
+
+        # Back to healthy
+        fc._BATTERY_VOLTAGE_MV = 50000
+        time.sleep(0.1)
+        assert_ats_status(fc,
+                          expected_flags=0,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True
+                          )
+
+        # don't deploy when only one is low
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+        time.sleep(0.1)
+
+        # now, UPS is unhealthy since main power measurements disagree
+        assert_ats_status(fc,
+                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True
+                          )
 
     # when the other goes low too, we deploy
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
     assert_ats_status(fc,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY
-                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=True,
                       expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)
@@ -225,6 +276,8 @@ def test_deploy_voltage_main_low_ups_healthy(fc: FCMock, parachute: ParachuteMoc
 }], indirect=True)
 def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISABLED, even with all failures set."""
+
+    fc._BATTERY_VOLTAGE_MV = 10000  # match measurements to avoid unhealthy UPS
 
     fc.set_armed(True)
     time.sleep(0.1)
@@ -260,12 +313,13 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
 def test_nodeploy_disarmed(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISARMED, even with all fail flags set."""
 
+    fc._BATTERY_VOLTAGE_MV = 10000  # match measurements to avoid unhealthy UPS
+
     time.sleep(0.1)
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         pass
 
-    # Sensor fail flags are set, but disarmed blocks both the control-failure
-    # path and the voltage path -> no PARACHUTE_DEPLOY.
+    # Sensor fail + main low, but disarmed blocks control-failure and power-loss deploy.
     assert_ats_status(fc,
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
@@ -424,48 +478,6 @@ def test_nodeploy_reboot_small_time_drop(fc: FCMock, parachute: ParachuteMock):
                       expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
-
-
-@pytest.mark.parametrize('px4', [{
-    'PARAM_AV_ATS_EN':    '1',
-    'PARAM_AV_ATS_TIMEOUT':   '150',
-    'PARAM_AV_ATS_ACC_NORM':  '5.0',
-    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
-    'PARAM_AV_ATS_PITCH_ANG': '60.0',
-    'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
-    'PARAM_AV_ATS_MP1_SM':     '50.0',
-    'PARAM_AV_ATS_MP2_SM':     '50.0',
-    'PARAM_AV_ATS_UPS_SM':     '5.0',
-}], indirect=True)
-def test_nodeploy_voltage_main_low_ups_unhealthy(fc: FCMock, parachute: ParachuteMock):
-    """No deploy when all voltages (including UPS) drop simultaneously.
-
-    If the UPS voltage also drops below its threshold (<=4V), the voltage
-    readings are considered unreliable (e.g. sensor/ADC issue) and the
-    parachute must not fire.
-    """
-
-    fc.set_armed(True)
-    time.sleep(0.1)
-    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
-        # Set UPS low first to avoid a race where main powers are seen as low
-        # while UPS is still healthy (which would trigger voltage_fail).
-        # This is realistic, we will have a margin on the voltage threshold
-        # ensuring measurements for a short while after the failure is detected
-        fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
-        time.sleep(0.2)  # must be more than 0.1, otherwise test becomes flaky
-        fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
-        fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
-
-    # Power loss should be flagged, but not deploy parachute since UPS is unhealthy
-    assert_ats_status(fc,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
-                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS,
                       expected_enabled_status=True,
                       expected_powerloss_enabled_status=True,
                       expected_fc_armed=True)

@@ -152,7 +152,9 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
 	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
 
-	result.ups_healthy = ups_v > _params_av_ats_ups_lowv.get();
+	if (_params_av_ats_ups_lowv.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lowv.get()) {
+		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_LOWV;
+	}
 
 	const float tol = _param_av_ats_bat_v_tol.get();
 
@@ -272,7 +274,7 @@ ATS::Run()
 		&& ((ats_state.fc.armed && ats_state.fc_timeout) || ats_state.fc.rebooted_while_armed);
 
 	ats_state.inflight_power_failure =
-		(ats_state.voltage.ups_healthy && ats_state.voltage.main_voltage_fail)
+		ats_state.voltage.main_voltage_fail
 		&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed);
 
 	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
@@ -282,7 +284,7 @@ ATS::Run()
 	ats_state.power_loss_trigger_enabled = static_cast<bool>(_params_av_ats_v_en.get());
 
 	// In case of power loss, we don't have time to wait for the hysteresis
-	if (ats_state.voltage.ups_healthy && ats_state.power_loss_trigger_enabled && ats_state.inflight_power_failure) {
+	if (ats_state.power_loss_trigger_enabled && ats_state.inflight_power_failure) {
 		ats_state.parachute_deploy = true;
 	}
 

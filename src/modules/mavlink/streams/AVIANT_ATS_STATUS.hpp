@@ -50,7 +50,7 @@ private:
 
 			if (ats.voltage.main_voltage_fail)    { flags |= AVIANT_ATS_STATUS_FLAG_POWER_LOSS; }
 
-			if (!ats.voltage.ups_healthy)         { flags |= AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY; }
+			if (ats.voltage.ups_status_flags != 0)         { flags |= AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY; }
 
 			if (ats.internal_failure_flags != 0)  { flags |= AVIANT_ATS_STATUS_FLAG_INTERNAL_FAILURE; }
 

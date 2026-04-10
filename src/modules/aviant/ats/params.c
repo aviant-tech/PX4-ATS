@@ -80,9 +80,8 @@ PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 30.0f);
 /**
  * ATS UPS low voltage threshold
  *
- * If the UPS voltage is at or below this threshold, the
- * voltage measurement is considered unreliable and will
- * not trigger a parachute deploy.
+ * Below this threshold the UPS is reported unhealthy (status flag only;
+ * does not block voltage-based deploy).
  *
  * @group Aviant
  * @unit V
@@ -95,9 +94,8 @@ PARAM_DEFINE_FLOAT(AV_ATS_UPS_LOWV, 4.0f);
 /**
  * ATS voltage-based deployment enable
  *
- * When enabled, the ATS will deploy the parachute if both main
- * power rails drop below AV_ATS_MP_LOWV while the UPS voltage
- * remains above AV_ATS_UPS_LOWV.
+ * When enabled, deploy when both main rails are below AV_ATS_MP_LOWV
+ * (armed or rebooted-while-armed)
  *
  * @group Aviant
  * @boolean
