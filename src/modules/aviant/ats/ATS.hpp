@@ -15,6 +15,7 @@
 #include <uORB/topics/external_aviant_detailed_fc_state.h>
 #include <uORB/topics/vehicle_acceleration.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
 
@@ -75,6 +76,7 @@ private:
 	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
 	uORB::Subscription _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
 	uORB::Subscription _external_battery_status_sub{ORB_ID(external_battery_status)};
+	uORB::Subscription _parameter_update_sub{ORB_ID(parameter_update)};
 
 
 	DEFINE_PARAMETERS(
