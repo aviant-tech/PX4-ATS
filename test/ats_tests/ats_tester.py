@@ -122,10 +122,11 @@ class FCMock:
         while not self._stop_event.is_set():
             now = time.monotonic()
             due_fc = self._sending and (now >= next_fc)
-            due_battery = now >= next_battery
+            due_battery = self._sending and (now >= next_battery)
             if not due_fc and not due_battery:
                 wait_fc = (next_fc - now) if self._sending else float('inf')
-                wait = min(wait_fc, next_battery - now)
+                wait_battery = (next_battery - now) if self._sending else float('inf')
+                wait = min(wait_fc, wait_battery)
                 self._stop_event.wait(timeout=max(0.001, wait))
                 continue
             with self.mav.conn() as c:
