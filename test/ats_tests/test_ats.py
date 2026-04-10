@@ -726,10 +726,12 @@ def test_no_proxy_ack_disabled(fc: FCMock, parachute: ParachuteMock):
         parachute.send_force_disarm(target_component=1)
 
 
+_ARMED_12H_SIM_SPEED = 1000
+
 @pytest.mark.slow
 @pytest.mark.parametrize('px4', [{
     'PARAM_AV_ATS_EN':        '1',
-    'PARAM_AV_ATS_TIMEOUT':   '600000',
+    'PARAM_AV_ATS_TIMEOUT':   str(150 * _ARMED_12H_SIM_SPEED * 1.25),
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
@@ -739,13 +741,15 @@ def test_no_proxy_ack_disabled(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
-    'PX4_SIM_SPEED_FACTOR':   '1000',
+    'PARAM_AV_ATS_BAT_TOUT':  str(150 * _ARMED_12H_SIM_SPEED * 1.25),
+    'PX4_SIM_SPEED_FACTOR':   str(_ARMED_12H_SIM_SPEED),
 }], indirect=True)
 def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
     """No false-positive deploy after 12 simulated hours armed.
 
     Inject failures in acc/roll/pitch, but it should not deploy since there is no timeout.
-    Timeout is adjusted for sim speed.
+    AV_ATS_TIMEOUT and AV_ATS_BAT_TOUT are scaled with the sim speed factor, with a 1.25
+    margin to account for scheduling issues at high sim speed
 
     Runs PX4 at 1000x real-time so 12 h of simulated flight time
     passes in ~90 s of wall-clock time.  Catches overflow bugs in
@@ -758,7 +762,7 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
     fc.set_armed(True)
     time.sleep(0.1)
 
-    wait_time_s = 12 * 60 * 60 / 1000  # 1000 is from PX4_SIM_SPEED_FACTOR
+    wait_time_s = 12 * 60 * 60 / _ARMED_12H_SIM_SPEED
     with parachute.expect_no_deploy(duration_s=wait_time_s), fc.expect_no_flighttermination(duration_s=wait_time_s):
         pass
 
