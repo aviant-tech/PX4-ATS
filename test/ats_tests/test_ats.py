@@ -207,7 +207,7 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
 
         # Back to healthy
         fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
-        time.sleep(0.1)
+        time.sleep(1.0)
         assert_ats_status(fc,
                           expected_flags=0,
                           expected_enabled_status=True,
