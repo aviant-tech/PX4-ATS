@@ -99,6 +99,7 @@ class FCMock:
 
     _FC_INTERVAL_S = 1.0 / 30.0
     _BATTERY_INTERVAL_S = 1.0 / 10.0
+    _PAUSED_POLL_S = 1.0
     _BATTERY_VOLTAGE_MV = 50000  # 50 V in cell 0 (overall pack), per MAVLink BATTERY_STATUS
     _VOLT_UNUSED = 65535  # UINT16_MAX: unused cells
 
@@ -124,8 +125,8 @@ class FCMock:
             due_fc = self._sending and (now >= next_fc)
             due_battery = self._sending and (now >= next_battery)
             if not due_fc and not due_battery:
-                wait_fc = (next_fc - now) if self._sending else float('inf')
-                wait_battery = (next_battery - now) if self._sending else float('inf')
+                wait_fc = (next_fc - now) if self._sending else self._PAUSED_POLL_S
+                wait_battery = (next_battery - now) if self._sending else self._PAUSED_POLL_S
                 wait = min(wait_fc, wait_battery)
                 self._stop_event.wait(timeout=max(0.001, wait))
                 continue
