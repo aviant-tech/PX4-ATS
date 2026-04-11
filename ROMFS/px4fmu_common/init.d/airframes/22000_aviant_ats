@@ -7,6 +7,7 @@
 #
 
 param set-default MAV_TYPE 0
+param set-default MAV_SHL_USBONLY 0  # Allow mavlink shell over tcp
 
 param set-default COM_RC_IN_MODE 1  # Joystick only (stops QGC complaining about setup)
 

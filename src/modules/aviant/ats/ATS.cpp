@@ -259,6 +259,12 @@ ATS::Run()
 		return;
 	}
 
+	if (_parameter_update_sub.updated()) {
+		parameter_update_s param_update;
+		_parameter_update_sub.copy(&param_update);
+		updateParams();
+	}
+
 	aviant_ats_s ats_state{0};
 
 	ats_state.fc              = check_fc_state(ats_state.internal_failure_flags);
