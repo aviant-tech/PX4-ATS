@@ -97,6 +97,7 @@ set(msg_files
 	EstimatorStatusFlags.msg
 	Event.msg
 	ExternalAviantDetailedFcState.msg
+	ExternalBatteryStatus.msg
 	FigureEightStatus.msg
 	FailsafeFlags.msg
 	FailureDetectorStatus.msg

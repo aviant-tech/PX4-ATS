@@ -36,11 +36,14 @@ private:
 		(ParamFloat<px4::params::AV_ATS_MP1_SM>) _param_mp1_sim,
 		(ParamFloat<px4::params::AV_ATS_MP2_SM>) _param_mp2_sim,
 		(ParamFloat<px4::params::AV_ATS_UPS_SM>) _param_ups_sim,
+		(ParamFloat<px4::params::AV_ATS_PARA_SM>) _param_para_sim,
 		(ParamInt<px4::params::AV_ATS_MP1_CH>)   _param_mp1_ch,
 		(ParamFloat<px4::params::AV_ATS_MP1_DV>) _param_mp1_div,
 		(ParamInt<px4::params::AV_ATS_MP2_CH>)   _param_mp2_ch,
 		(ParamFloat<px4::params::AV_ATS_MP2_DV>) _param_mp2_div,
 		(ParamInt<px4::params::AV_ATS_UPS_CH>)   _param_ups_ch,
-		(ParamFloat<px4::params::AV_ATS_UPS_DV>) _param_ups_div
+		(ParamFloat<px4::params::AV_ATS_UPS_DV>) _param_ups_div,
+		(ParamInt<px4::params::AV_ATS_PARA_CH>)    _param_para_ch,
+		(ParamFloat<px4::params::AV_ATS_PARA_DV>)  _param_para_div
 	);
 };

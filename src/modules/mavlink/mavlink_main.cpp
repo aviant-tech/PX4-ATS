@@ -1652,7 +1652,6 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		break;
 
 	case MAVLINK_MODE_AVIANT_ATS:
-		configure_stream_local("FLIGHT_TERMINATION_CMD", 1.0f);
 		configure_stream_local("AVIANT_ATS_STATUS", 5.0f);
 		break;
 

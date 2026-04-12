@@ -80,9 +80,8 @@ PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 30.0f);
 /**
  * ATS UPS low voltage threshold
  *
- * If the UPS voltage is at or below this threshold, the
- * voltage measurement is considered unreliable and will
- * not trigger a parachute deploy.
+ * Below this threshold the UPS is reported unhealthy (status flag only;
+ * does not block voltage-based deploy).
  *
  * @group Aviant
  * @unit V
@@ -95,9 +94,8 @@ PARAM_DEFINE_FLOAT(AV_ATS_UPS_LOWV, 4.0f);
 /**
  * ATS voltage-based deployment enable
  *
- * When enabled, the ATS will deploy the parachute if both main
- * power rails drop below AV_ATS_MP_LOWV while the UPS voltage
- * remains above AV_ATS_UPS_LOWV.
+ * When enabled, deploy when both main rails are below AV_ATS_MP_LOWV
+ * (armed or rebooted-while-armed)
  *
  * @group Aviant
  * @boolean
@@ -181,3 +179,55 @@ PARAM_DEFINE_INT32(AV_ATS_UPS_CH, -1);
  * @max 100.0
  */
 PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);
+
+/**
+ * Parachute supply ADC channel
+ *
+ * Voltage sense for the parachute (release) supply rail.
+ *
+ * @group Aviant
+ * @min -1
+ * @max 15
+ */
+PARAM_DEFINE_INT32(AV_ATS_PARA_CH, -1);
+
+/**
+ * Parachute supply voltage divider
+ *
+ * Multiplier applied to ADC voltage to get actual voltage.
+ *
+ * @group Aviant
+ * @decimal 3
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_PARA_DV, 1.0f);
+
+/**
+ * ATS FC BATTERY_STATUS vs main ADC tolerance
+ *
+ * When > 0, ATS compares FC BATTERY_STATUS voltage to each main ADC rail,
+ * and the ADC rails to each other.
+ * Absolute difference above this sets UPS_STATUS_(FC/MP)_MISMATCH.
+ * When 0, comparison is off.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 2
+ * @min 0.0
+ * @max 100.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_BAT_V_TOL, 0.0f);
+
+/**
+ * ATS FC battery_status max age
+ *
+ * FC battery_status is considered invalid if older than this
+ * Ignored when set to 0.
+ *
+ * @group Aviant
+ * @unit ms
+ * @min 0
+ * @max 60000
+ */
+PARAM_DEFINE_INT32(AV_ATS_BAT_TOUT, 1000);

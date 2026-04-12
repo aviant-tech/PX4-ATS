@@ -9,7 +9,8 @@ starting the aviant_ats module.
 
 Two separate MAVLink connections are established, each on its own
 ``udpin`` port backed by a dedicated PX4 MAVLink link:
-  * **fc** (component 1) on the offboard link – feeds FC state to ATS.
+  * **fc** (component 1) on the offboard link – feeds FC state and
+    BATTERY_STATUS (10 Hz) to ATS.
   * **parachute** (component 161) on the parachute link – publishes
     heartbeats and sends/receives commands.
 """
@@ -202,7 +203,8 @@ def _mocks(px4):
     # sent once EKF2 publishes vehicle_attitude (requires tilt_align=true).
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
-        msg = fc.conn.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
+        with fc.mav.conn() as c:
+            msg = c.recv_match(type='ATTITUDE', blocking=True, timeout=1.0)
         if msg is not None:
             break
     else:
