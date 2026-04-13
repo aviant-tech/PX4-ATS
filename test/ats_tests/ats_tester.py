@@ -98,7 +98,7 @@ class FCMock:
     ATS_COMP_ID = 60
 
     _FC_INTERVAL_S = 1.0 / 30.0
-    _BATTERY_INTERVAL_S = 1.0 / 10.0
+    _BATTERY_INTERVAL_S = 1.0 / 2.0
     _PAUSED_POLL_S = 1.0
     _BATTERY_VOLTAGE_MV = 50000  # 50 V in cell 0 (overall pack), per MAVLink BATTERY_STATUS
     _VOLT_UNUSED = 65535  # UINT16_MAX: unused cells
@@ -125,35 +125,36 @@ class FCMock:
             due_fc = self._sending and (now >= next_fc)
             due_battery = self._sending and (now >= next_battery)
             if not due_fc and not due_battery:
-                wait_fc = (next_fc - now) if self._sending else self._PAUSED_POLL_S
-                wait_battery = (next_battery - now) if self._sending else self._PAUSED_POLL_S
-                wait = min(wait_fc, wait_battery)
-                self._stop_event.wait(timeout=max(0.001, wait))
+                wait_fc = (next_fc - now)
+                wait_battery = (next_battery - now)
+                self._stop_event.wait(timeout=max(0.001, min(wait_fc, wait_battery)))
                 continue
             with self.mav.conn() as c:
                 now = time.monotonic()
-                if self._sending and now >= next_fc:
-                    c.mav.send(mavlink.MAVLink_aviant_detailed_fc_state_message(
-                        self._time_boot_ms(),
-                        int(time.time() * 1e6),
-                        1 if self._armed else 0,
-                        0,
-                    ))
+                if due_fc:
                     next_fc = now + self._FC_INTERVAL_S
-                if self._sending and now >= next_battery:
-                    voltages = [self._BATTERY_VOLTAGE_MV] + [self._VOLT_UNUSED] * 9
-                    c.mav.send(mavlink.MAVLink_battery_status_message(
-                        0,
-                        mavlink.MAV_BATTERY_FUNCTION_ALL,
-                        mavlink.MAV_BATTERY_TYPE_UNKNOWN,
-                        32767,
-                        voltages,
-                        -1,
-                        -1,
-                        -1,
-                        -1,
-                    ))
+                    if self._sending:
+                        c.mav.send(mavlink.MAVLink_aviant_detailed_fc_state_message(
+                            self._time_boot_ms(),
+                            int(time.time() * 1e6),
+                            1 if self._armed else 0,
+                            0,
+                        ))
+                if due_battery:
                     next_battery = now + self._BATTERY_INTERVAL_S
+                    if self._sending:
+                        voltages = [self._BATTERY_VOLTAGE_MV] + [self._VOLT_UNUSED] * 9
+                        c.mav.send(mavlink.MAVLink_battery_status_message(
+                            0,
+                            mavlink.MAV_BATTERY_FUNCTION_ALL,
+                            mavlink.MAV_BATTERY_TYPE_UNKNOWN,
+                            32767,
+                            voltages,
+                            -1,
+                            -1,
+                            -1,
+                            -1,
+                        ))
 
     def _time_boot_ms(self) -> int:
         return int((time.monotonic() - self.boot_timestamp_s) * 1000)
