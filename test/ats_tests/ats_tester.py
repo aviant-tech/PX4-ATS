@@ -76,13 +76,13 @@ class MAVLinkInterface:
         """
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
             with self.conn() as c:
-                msg = c.recv_match(blocking=True, timeout=min(0.05, remaining))
-            if msg is not None and predicate(msg):
-                return msg
+                msg = c.recv_match(blocking=False)
+            if msg is not None:
+                if predicate(msg):
+                    return msg
+                continue
+            time.sleep(0.001)
         return None
 
     def close(self) -> None:
