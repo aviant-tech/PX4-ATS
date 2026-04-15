@@ -147,6 +147,19 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
 				   && (mp2_v < _params_av_ats_mp_lowv.get());
 
+	if (_param_para_ch.get() >= 0) {
+		result.parachute_voltage_fail = parachute_v < _params_av_ats_para_lowv.get();
+
+		// Only set the flag if we're actually measuring it
+		if (result.parachute_voltage_fail) {
+			result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_PARA_LOWV;
+		}
+
+	} else {
+		result.parachute_voltage_fail = false;
+	}
+
+
 	result.fc_battery_v = get_fc_battery_voltage(result.ups_status_flags);
 
 	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
@@ -279,9 +292,12 @@ ATS::Run()
 		(ats_state.attitude.roll_fail || ats_state.attitude.pitch_fail || ats_state.accel_norm_fail)
 		&& ((ats_state.fc.armed && ats_state.fc_timeout) || ats_state.fc.rebooted_while_armed);
 
-	ats_state.inflight_power_failure =
-		ats_state.voltage.main_voltage_fail
-		&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed);
+	ats_state.inflight_power_failure = (
+			ats_state.voltage.main_voltage_fail
+			&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed)
+			// if parachute voltage is not also failed, we don't have a true power loss
+			&& (ats_state.voltage.parachute_voltage_fail || _param_para_ch.get() == -1)
+					   );
 
 	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
 	_deployment_hysteresis.set_state_and_update(ats_state.inflight_control_failure, hrt_absolute_time());
