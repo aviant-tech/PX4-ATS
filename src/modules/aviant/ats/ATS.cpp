@@ -144,11 +144,11 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.ups_v = ups_v;
 	result.parachute_v = parachute_v;
 
-	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
-				   && (mp2_v < _params_av_ats_mp_lowv.get());
+	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lo_v.get())
+				   && (mp2_v < _params_av_ats_mp_lo_v.get());
 
 	if (_param_para_ch.get() >= 0) {
-		result.parachute_voltage_fail = parachute_v < _params_av_ats_para_lowv.get();
+		result.parachute_voltage_fail = parachute_v < _params_av_ats_para_lo_v.get();
 
 		// Only set the flag if we're actually measuring it
 		if (result.parachute_voltage_fail) {
@@ -165,8 +165,18 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
 	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
 
-	if (_params_av_ats_ups_lowv.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lowv.get()) {
+	if (_params_av_ats_ups_lo_v.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lo_v.get()) {
 		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_LOWV;
+	}
+
+	if (_param_ups_ch.get() >= 0 && _params_av_ats_ups_hi_v.get() > FLT_EPSILON
+	    && ups_v > _params_av_ats_ups_hi_v.get()) {
+		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_UPS_HIGHV;
+	}
+
+	if (_param_para_ch.get() >= 0 && _params_av_ats_para_hi_v.get() > FLT_EPSILON
+	    && parachute_v > _params_av_ats_para_hi_v.get()) {
+		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_PARA_HIGHV;
 	}
 
 	const float tol = _param_av_ats_bat_v_tol.get();

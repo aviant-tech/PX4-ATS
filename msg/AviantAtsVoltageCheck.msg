@@ -14,3 +14,5 @@ uint8 UPS_STATUS_MP_MISMATCH = 4 # (1 << 2)
 uint8 UPS_STATUS_FC_BATTERY_MISSING = 8 # (1 << 3) # no external BATTERY_STATUS
 uint8 UPS_STATUS_FC_BATTERY_STALE = 16 # (1 << 4) # BATTERY_STATUS older than timeout
 uint8 UPS_STATUS_PARA_LOWV = 32 # (1 << 5)
+uint8 UPS_STATUS_UPS_HIGHV = 64 # (1 << 6)
+uint8 UPS_STATUS_PARA_HIGHV = 128 # (1 << 7)
