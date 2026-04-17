@@ -122,6 +122,7 @@ PARAM_DEFINE_INT32(AV_ATS_V_EN, 0);
  * When the parachute ADC channel is configured (AV_ATS_PARA_CH >= 0),
  * voltage-based deployment additionally requires the measured parachute
  * capacitor voltage to be below this threshold.
+ * When 0, the check is disabled.
  *
  * @group Aviant
  * @unit V
