@@ -75,7 +75,7 @@ PARAM_DEFINE_INT32(AV_ATS_EN, 0);
  * @min 0
  * @max 100
  */
-PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 30.0f);
+PARAM_DEFINE_FLOAT(AV_ATS_MP_LO_V, 30.0f);
 
 /**
  * ATS UPS low voltage threshold
@@ -89,18 +89,63 @@ PARAM_DEFINE_FLOAT(AV_ATS_MP_LOWV, 30.0f);
  * @min 0
  * @max 100
  */
-PARAM_DEFINE_FLOAT(AV_ATS_UPS_LOWV, 4.0f);
+PARAM_DEFINE_FLOAT(AV_ATS_UPS_LO_V, 4.0f);
+
+/**
+ * ATS UPS high voltage threshold
+ *
+ * Above this threshold the UPS is reported unhealthy (status flag only;
+ * does not affect deployment). When 0, the check is disabled.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 1
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_UPS_HI_V, 0.0f);
 
 /**
  * ATS voltage-based deployment enable
  *
- * When enabled, deploy when both main rails are below AV_ATS_MP_LOWV
- * (armed or rebooted-while-armed)
+ * When enabled, deploy when inflight power loss is detected.
+ * See AV_ATS_MP_LO_V and AV_ATS_PARA_LO_V
  *
  * @group Aviant
  * @boolean
  */
 PARAM_DEFINE_INT32(AV_ATS_V_EN, 0);
+
+/**
+ * ATS parachute capacitor low voltage threshold
+ *
+ * When the parachute ADC channel is configured (AV_ATS_PARA_CH >= 0),
+ * voltage-based deployment additionally requires the measured parachute
+ * capacitor voltage to be below this threshold.
+ * When 0, the check is disabled.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 1
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_PARA_LO_V, 20.0f);
+
+/**
+ * ATS parachute capacitor high voltage threshold
+ *
+ * When the parachute ADC channel is configured (AV_ATS_PARA_CH >= 0),
+ * a measured capacitor voltage above this threshold sets a UPS status
+ * flag only; it does not affect deployment. When 0, the check is disabled.
+ *
+ * @group Aviant
+ * @unit V
+ * @decimal 1
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_PARA_HI_V, 0.0f);
 
 /**
  * ATS deployment hysteresis
@@ -181,9 +226,9 @@ PARAM_DEFINE_INT32(AV_ATS_UPS_CH, -1);
 PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);
 
 /**
- * Parachute supply ADC channel
+ * Parachute capacitor ADC channel
  *
- * Voltage sense for the parachute (release) supply rail.
+ * Voltage sense for the parachute release capacitor.
  *
  * @group Aviant
  * @min -1
@@ -192,9 +237,9 @@ PARAM_DEFINE_FLOAT(AV_ATS_UPS_DV, 1.0f);
 PARAM_DEFINE_INT32(AV_ATS_PARA_CH, -1);
 
 /**
- * Parachute supply voltage divider
+ * Parachute capacitor voltage divider
  *
- * Multiplier applied to ADC voltage to get actual voltage.
+ * Multiplier applied to ADC voltage to get actual capacitor voltage.
  *
  * @group Aviant
  * @decimal 3

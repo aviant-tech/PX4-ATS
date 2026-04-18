@@ -9,8 +9,11 @@
 [ -n "$PARAM_AV_ATS_PITCH_ANG" ] && param set AV_ATS_PITCH_ANG $PARAM_AV_ATS_PITCH_ANG
 
 [ -n "$PARAM_AV_ATS_V_EN" ]      && param set AV_ATS_V_EN     $PARAM_AV_ATS_V_EN
-[ -n "$PARAM_AV_ATS_MP_LOWV" ]   && param set AV_ATS_MP_LOWV  $PARAM_AV_ATS_MP_LOWV
-[ -n "$PARAM_AV_ATS_UPS_LOWV" ]  && param set AV_ATS_UPS_LOWV $PARAM_AV_ATS_UPS_LOWV
+[ -n "$PARAM_AV_ATS_MP_LO_V" ]   && param set AV_ATS_MP_LO_V  $PARAM_AV_ATS_MP_LO_V
+[ -n "$PARAM_AV_ATS_PARA_LO_V" ] && param set AV_ATS_PARA_LO_V $PARAM_AV_ATS_PARA_LO_V
+[ -n "$PARAM_AV_ATS_UPS_LO_V" ]  && param set AV_ATS_UPS_LO_V $PARAM_AV_ATS_UPS_LO_V
+[ -n "$PARAM_AV_ATS_UPS_HI_V" ] && param set AV_ATS_UPS_HI_V $PARAM_AV_ATS_UPS_HI_V
+[ -n "$PARAM_AV_ATS_PARA_HI_V" ] && param set AV_ATS_PARA_HI_V $PARAM_AV_ATS_PARA_HI_V
 
 # ADC channel/divider config (shared by ATS and the ADC mock)
 [ -n "$PARAM_AV_ATS_MP1_CH" ]  && param set AV_ATS_MP1_CH  $PARAM_AV_ATS_MP1_CH

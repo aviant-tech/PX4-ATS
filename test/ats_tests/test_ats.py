@@ -48,8 +48,8 @@ def assert_ats_status(fc: FCMock, expected_flags: int,
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -81,8 +81,8 @@ def test_deploy_timeout_accel_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '80.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -118,8 +118,8 @@ def test_deploy_timeout_roll_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -155,8 +155,8 @@ def test_deploy_timeout_pitch_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -185,8 +185,8 @@ def test_deploy_reboot_armed_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -198,6 +198,7 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
     time.sleep(0.1)
 
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
+
         # Low UPS voltage should trigger unhealthy
         fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
         time.sleep(0.1)
@@ -239,6 +240,9 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
                           expected_fc_armed=True
                           )
 
+        # Set parachute voltage low so it doesn't block deployment
+        fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
+
         # don't deploy when only one is low
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         time.sleep(0.1)
@@ -265,22 +269,120 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
 
 
 @pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':    '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '5.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
+    'PARAM_AV_ATS_UPS_HI_V': '6.0',
+    'PARAM_AV_ATS_PARA_HI_V': '25.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
+    'PARAM_AV_ATS_PARA_SM':    '24.0',
+}], indirect=True)
+def test_ups_high_voltage_flags_only(fc: FCMock, parachute: ParachuteMock):
+    """UPS / parachute over-voltage sets UPS_UNHEALTHY"""
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
+        fc.set_ats_param('AV_ATS_UPS_SM', 10.0)
+        time.sleep(0.15)
+        assert_ats_status(fc,
+                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True)
+
+        fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
+        time.sleep(0.15)
+        assert_ats_status(fc,
+                          expected_flags=0,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True)
+
+        fc.set_ats_param('AV_ATS_PARA_SM', 30.0)
+        time.sleep(0.15)
+        assert_ats_status(fc,
+                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True)
+
+        fc.set_ats_param('AV_ATS_PARA_SM', 24.0)
+        time.sleep(0.15)
+        assert_ats_status(fc,
+                          expected_flags=0,
+                          expected_enabled_status=True,
+                          expected_powerloss_enabled_status=True,
+                          expected_fc_armed=True)
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':    '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '5.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
+}], indirect=True)
+def test_powerloss_deploy_requires_parachute_capacitor_low(fc: FCMock, parachute: ParachuteMock):
+    """Mains below AV_ATS_MP_LO_V only triggers voltage deploy when parachute capacitor voltage is below AV_ATS_PARA_LO_V."""
+
+    fc.set_armed(True)
+    time.sleep(0.1)
+
+
+    with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
+        fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
+        fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
+
+    assert_ats_status(fc,
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)
+
+    with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
+        fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
+
+    assert_ats_status(fc,
+                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                      expected_enabled_status=True,
+                      expected_powerloss_enabled_status=True,
+                      expected_fc_armed=True)
+
+
+@pytest.mark.parametrize('px4', [{
     'PARAM_AV_ATS_EN':    '0',
     'PARAM_AV_ATS_TIMEOUT':   '150',
     'PARAM_AV_ATS_ACC_NORM':  '20.0',
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '10.0',
     'PARAM_AV_ATS_MP2_SM':     '10.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
+    'PARAM_AV_ATS_PARA_SM':    '18.0',
 }], indirect=True)
 def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISABLED, even with all failures set."""
-
-    fc._BATTERY_VOLTAGE_MV = 10000  # match measurements to avoid unhealthy UPS
 
     fc.set_armed(True)
     time.sleep(0.1)
@@ -294,6 +396,7 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
                                       | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
                       expected_enabled_status=False,
                       expected_powerloss_enabled_status=True,
@@ -307,8 +410,8 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '10.0',
     'PARAM_AV_ATS_MP2_SM':     '10.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -340,8 +443,8 @@ def test_nodeploy_disarmed(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -371,8 +474,8 @@ def test_nodeploy_timeout_no_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -409,8 +512,8 @@ def test_nodeploy_sensor_fail_no_timeout(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -437,8 +540,8 @@ def test_nodeploy_reboot_armed_no_sensor_fail(fc: FCMock, parachute: ParachuteMo
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -467,8 +570,8 @@ def test_nodeploy_reboot_disarmed(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':     '50.0',
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
@@ -497,8 +600,8 @@ def test_nodeploy_reboot_small_time_drop(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -533,8 +636,8 @@ def test_stops_repeating_deploy_commands_after_acks(fc: FCMock, parachute: Parac
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -563,8 +666,8 @@ def test_proxy_ack_flighttermination(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -593,8 +696,8 @@ def test_proxy_ack_force_disarm(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -619,8 +722,8 @@ def test_no_proxy_ack_flighttermination_before_deploy(fc: FCMock, parachute: Par
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -645,8 +748,8 @@ def test_no_proxy_ack_force_disarm_before_deploy(fc: FCMock, parachute: Parachut
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -674,8 +777,8 @@ def test_no_proxy_ack_flighttermination_wrong_target(fc: FCMock, parachute: Para
     'PARAM_AV_ATS_ROLL_ANG':  '80.0',
     'PARAM_AV_ATS_PITCH_ANG': '60.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -704,8 +807,8 @@ def test_no_proxy_ack_regular_disarm(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '10.0',
     'PARAM_AV_ATS_MP2_SM':    '10.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -743,8 +846,8 @@ _ARMED_12H_SIM_SPEED = 1000
     'PARAM_AV_ATS_ROLL_ANG':  '0.0',
     'PARAM_AV_ATS_PITCH_ANG': '0.0',
     'PARAM_AV_ATS_V_EN':      '1',
-    'PARAM_AV_ATS_MP_LOWV':   '15.0',
-    'PARAM_AV_ATS_UPS_LOWV':  '4.0',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
     'PARAM_AV_ATS_MP1_SM':    '50.0',
     'PARAM_AV_ATS_MP2_SM':    '50.0',
     'PARAM_AV_ATS_UPS_SM':    '5.0',
@@ -782,5 +885,6 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
                       expected_fc_armed=True)
 
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
+        fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)

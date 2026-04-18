@@ -2,6 +2,7 @@
 #include "drivers/drv_hrt.h"
 #include "uORB/topics/aviant_ats.h"
 #include <cassert>
+#include <float.h>
 #pragma GCC diagnostic push
 // MAVLink intentionally ignores alignment in some places
 #pragma GCC diagnostic ignored "-Wcast-align"
@@ -144,16 +145,39 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 	result.ups_v = ups_v;
 	result.parachute_v = parachute_v;
 
-	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lowv.get())
-				   && (mp2_v < _params_av_ats_mp_lowv.get());
+	result.main_voltage_fail = (mp1_v < _params_av_ats_mp_lo_v.get())
+				   && (mp2_v < _params_av_ats_mp_lo_v.get());
+
+	if (_param_para_ch.get() >= 0 && _params_av_ats_para_lo_v.get() > FLT_EPSILON) {
+		result.parachute_voltage_fail = parachute_v < _params_av_ats_para_lo_v.get();
+
+		// Only set the flag if we're actually checking it
+		if (result.parachute_voltage_fail) {
+			result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_PARA_LOWV;
+		}
+
+	} else {
+		result.parachute_voltage_fail = false;
+	}
+
 
 	result.fc_battery_v = get_fc_battery_voltage(result.ups_status_flags);
 
 	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
 	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
 
-	if (_params_av_ats_ups_lowv.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lowv.get()) {
+	if (_params_av_ats_ups_lo_v.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lo_v.get()) {
 		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_LOWV;
+	}
+
+	if (_param_ups_ch.get() >= 0 && _params_av_ats_ups_hi_v.get() > FLT_EPSILON
+	    && ups_v > _params_av_ats_ups_hi_v.get()) {
+		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_UPS_HIGHV;
+	}
+
+	if (_param_para_ch.get() >= 0 && _params_av_ats_para_hi_v.get() > FLT_EPSILON
+	    && parachute_v > _params_av_ats_para_hi_v.get()) {
+		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_PARA_HIGHV;
 	}
 
 	const float tol = _param_av_ats_bat_v_tol.get();
@@ -279,9 +303,17 @@ ATS::Run()
 		(ats_state.attitude.roll_fail || ats_state.attitude.pitch_fail || ats_state.accel_norm_fail)
 		&& ((ats_state.fc.armed && ats_state.fc_timeout) || ats_state.fc.rebooted_while_armed);
 
-	ats_state.inflight_power_failure =
-		ats_state.voltage.main_voltage_fail
-		&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed);
+	const bool use_parachute_voltage_for_deploy_decision = (
+				_param_para_ch.get() != -1
+				&& _params_av_ats_para_lo_v.get() > FLT_EPSILON
+			);
+
+	ats_state.inflight_power_failure = (
+			ats_state.voltage.main_voltage_fail
+			&& (ats_state.fc.armed || ats_state.fc.rebooted_while_armed)
+			// if parachute voltage is not also failed, we don't have a true power loss
+			&& (ats_state.voltage.parachute_voltage_fail || !use_parachute_voltage_for_deploy_decision)
+					   );
 
 	_deployment_hysteresis.set_hysteresis_time_from(false, (hrt_abstime)(1_s * _params_av_ats_ttri.get()));
 	_deployment_hysteresis.set_state_and_update(ats_state.inflight_control_failure, hrt_absolute_time());

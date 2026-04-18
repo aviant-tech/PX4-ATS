@@ -32,7 +32,7 @@ PARAM_DEFINE_FLOAT(AV_ATS_MP2_SM, 50.0f);
 PARAM_DEFINE_FLOAT(AV_ATS_UPS_SM, 5.0f);
 
 /**
- * Simulated parachute supply voltage (SITL)
+ * Simulated parachute capacitor voltage (SITL)
  *
  * @group Aviant
  * @unit V
