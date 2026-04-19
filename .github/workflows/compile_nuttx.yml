@@ -64,8 +64,6 @@ jobs:
       run: make ${{matrix.config}} bloaty_templates || true
     - name: make ${{matrix.config}} bloaty_ram
       run: make ${{matrix.config}} bloaty_ram || true
-    - name: make ${{matrix.config}} bloaty_compare_master
-      run: make ${{matrix.config}} bloaty_compare_master || true
     - name: ccache post-run
       run: ccache -s
 
