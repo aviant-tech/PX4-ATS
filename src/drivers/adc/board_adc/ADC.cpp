@@ -121,6 +121,10 @@ void ADC::Run()
 		if (discard > 0 && (discard_mask & (1 << _samples[i].am_channel))) {
 			for (int32_t s = 0; s < discard; s++) {
 				sample(_samples[i].am_channel); // discard: settles S&H capacitor
+				// Prevent unrealistic sample counts within the 10 us we have
+				if (s >= 100) {
+					break;
+				}
 			}
 		}
 
