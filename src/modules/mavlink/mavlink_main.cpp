@@ -1063,72 +1063,65 @@ Mavlink::send_statustext_emergency(const char *string)
 bool
 Mavlink::send_autopilot_capabilities()
 {
-	uORB::Subscription status_sub{ORB_ID(vehicle_status)};
-	vehicle_status_s status;
+	mavlink_autopilot_version_t msg{};
 
-	if (status_sub.copy(&status)) {
-		mavlink_autopilot_version_t msg{};
-
-		msg.capabilities = MAV_PROTOCOL_CAPABILITY_MISSION_FLOAT;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_INT;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_PARAM_FLOAT;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_COMMAND_INT;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_PARAM_ENCODE_BYTEWISE;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_FTP;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_SET_ATTITUDE_TARGET;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_SET_POSITION_TARGET_LOCAL_NED;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_FLIGHT_TERMINATION;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MAVLINK2;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_FENCE;
-		msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_RALLY;
-		msg.flight_sw_version = px4_firmware_version();
-		msg.middleware_sw_version = px4_firmware_version();
-		msg.os_sw_version = px4_os_version();
-		msg.board_version = px4_board_version();
-		/* use only first 5 bytes of git hash for firmware version */
-		const uint64_t fw_git_version_binary = px4_firmware_version_binary() & 0xFFFFFFFFFF000000;
-		const uint64_t fw_vendor_version = px4_firmware_vendor_version() >> 8;
-		constexpr size_t fw_vendor_version_length = 3;
-		memcpy(&msg.flight_custom_version, &fw_git_version_binary, sizeof(msg.flight_custom_version));
-		memcpy(&msg.flight_custom_version, &fw_vendor_version, fw_vendor_version_length);
-		memcpy(&msg.middleware_custom_version, &fw_git_version_binary, sizeof(msg.middleware_custom_version));
-		uint64_t os_git_version_binary = px4_os_version_binary();
-		memcpy(&msg.os_custom_version, &os_git_version_binary, sizeof(msg.os_custom_version));
+	msg.capabilities = MAV_PROTOCOL_CAPABILITY_MISSION_FLOAT;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_INT;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_PARAM_FLOAT;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_COMMAND_INT;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_PARAM_ENCODE_BYTEWISE;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_FTP;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_SET_ATTITUDE_TARGET;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_SET_POSITION_TARGET_LOCAL_NED;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_FLIGHT_TERMINATION;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MAVLINK2;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_FENCE;
+	msg.capabilities |= MAV_PROTOCOL_CAPABILITY_MISSION_RALLY;
+	msg.flight_sw_version = px4_firmware_version();
+	msg.middleware_sw_version = px4_firmware_version();
+	msg.os_sw_version = px4_os_version();
+	msg.board_version = px4_board_version();
+	/* use only first 5 bytes of git hash for firmware version */
+	const uint64_t fw_git_version_binary = px4_firmware_version_binary() & 0xFFFFFFFFFF000000;
+	const uint64_t fw_vendor_version = px4_firmware_vendor_version() >> 8;
+	constexpr size_t fw_vendor_version_length = 3;
+	memcpy(&msg.flight_custom_version, &fw_git_version_binary, sizeof(msg.flight_custom_version));
+	memcpy(&msg.flight_custom_version, &fw_vendor_version, fw_vendor_version_length);
+	memcpy(&msg.middleware_custom_version, &fw_git_version_binary, sizeof(msg.middleware_custom_version));
+	uint64_t os_git_version_binary = px4_os_version_binary();
+	memcpy(&msg.os_custom_version, &os_git_version_binary, sizeof(msg.os_custom_version));
 #ifdef CONFIG_CDCACM_VENDORID
-		msg.vendor_id = CONFIG_CDCACM_VENDORID;
+	msg.vendor_id = CONFIG_CDCACM_VENDORID;
 #else
-		msg.vendor_id = 0;
+	msg.vendor_id = 0;
 #endif
 #ifdef CONFIG_CDCACM_PRODUCTID
-		msg.product_id = CONFIG_CDCACM_PRODUCTID;
+	msg.product_id = CONFIG_CDCACM_PRODUCTID;
 #else
-		msg.product_id = 0;
+	msg.product_id = 0;
 #endif
-		uuid_uint32_t uid;
-		board_get_uuid32(uid);
-		msg.uid = (((uint64_t)uid[PX4_CPU_UUID_WORD32_UNIQUE_M]) << 32) | uid[PX4_CPU_UUID_WORD32_UNIQUE_H];
+	uuid_uint32_t uid;
+	board_get_uuid32(uid);
+	msg.uid = (((uint64_t)uid[PX4_CPU_UUID_WORD32_UNIQUE_M]) << 32) | uid[PX4_CPU_UUID_WORD32_UNIQUE_H];
 
 #ifndef BOARD_HAS_NO_UUID
-		px4_guid_t px4_guid;
-		board_get_px4_guid(px4_guid);
-		static_assert(sizeof(px4_guid_t) == sizeof(msg.uid2), "GUID byte length mismatch");
-		memcpy(&msg.uid2, &px4_guid, sizeof(msg.uid2));
+	px4_guid_t px4_guid;
+	board_get_px4_guid(px4_guid);
+	static_assert(sizeof(px4_guid_t) == sizeof(msg.uid2), "GUID byte length mismatch");
+	memcpy(&msg.uid2, &px4_guid, sizeof(msg.uid2));
 #endif /* BOARD_HAS_NO_UUID */
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
-		// To avoid that multiple SITL instances have the same UUID, we add the mavlink
-		// system ID. We subtract 1, so that the first UUID remains unchanged given the
-		// default system ID is 1.
-		//
-		// Note that the UUID show in `ver` will still be the same for all instances.
-		msg.uid += mavlink_system.sysid - 1;
-		msg.uid2[0] += mavlink_system.sysid - 1;
+	// To avoid that multiple SITL instances have the same UUID, we add the mavlink
+	// system ID. We subtract 1, so that the first UUID remains unchanged given the
+	// default system ID is 1.
+	//
+	// Note that the UUID show in `ver` will still be the same for all instances.
+	msg.uid += mavlink_system.sysid - 1;
+	msg.uid2[0] += mavlink_system.sysid - 1;
 #endif /* CONFIG_ARCH_BOARD_PX4_SITL */
-		mavlink_msg_autopilot_version_send_struct(get_channel(), &msg);
-		return true;
-	}
-
-	return false;
+	mavlink_msg_autopilot_version_send_struct(get_channel(), &msg);
+	return true;
 }
 
 void
