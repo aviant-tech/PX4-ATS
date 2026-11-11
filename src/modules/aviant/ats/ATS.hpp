@@ -18,6 +18,9 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_command_ack.h>
+#include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/topics/estimator_states.h>
+#include <uORB/topics/estimator_status_flags.h>
 
 using namespace time_literals;
 
@@ -57,6 +60,8 @@ private:
 	aviant_ats_attitude_check_s check_attitude(uint8_t &internal_failure_flags);
 	aviant_ats_voltage_check_s check_voltages(uint8_t &internal_failure_flags);
 	float get_fc_battery_voltage(uint8_t &ups_status_flags);
+	void publish_land_detected(const aviant_ats_fc_check_s &fc);
+	bool check_estimator();
 
 	static float channel_voltage(const adc_report_s &adc, int32_t channel, float divider);
 
@@ -69,6 +74,15 @@ private:
 	hrt_abstime _parachute_interval{10_ms};
 
 	uORB::Publication<aviant_ats_s> _aviant_ats_pub{ORB_ID(aviant_ats)};
+	uORB::Publication<vehicle_land_detected_s> _land_detected_pub{ORB_ID(vehicle_land_detected)};
+	hrt_abstime _last_land_detected_pub{0};
+
+	uORB::Subscription _estimator_states_sub{ORB_ID(estimator_states)};
+	uORB::Subscription _estimator_status_flags_sub{ORB_ID(estimator_status_flags)};
+	uORB::Subscription _external_ins_attitude_sub{ORB_ID(external_ins_attitude)};
+	hrt_abstime _last_aided{0};          // last time EKF2 had any horizontal velocity/position aiding (or at rest)
+	hrt_abstime _disagree_since{0};      // start of the current ATS-vs-FC tilt disagreement, 0 = none
+	bool _estimator_failed{false};       // latched until reboot
 
 	uORB::Subscription _adc_report_sub{ORB_ID(adc_report)};
 	uORB::Subscription _ext_detailed_fc_state_sub{ORB_ID(external_aviant_detailed_fc_state)};
@@ -102,6 +116,10 @@ private:
 		(ParamFloat<px4::params::AV_ATS_PARA_DV>)     _param_para_div,
 		(ParamFloat<px4::params::AV_ATS_BAT_V_TOL>)   _param_av_ats_bat_v_tol,
 		(ParamInt<px4::params::AV_ATS_BAT_TOUT>) 	_param_av_ats_bat_tout,
+		(ParamInt<px4::params::AV_ATS_LAND_EN>)     _param_land_en,
+		(ParamInt<px4::params::AV_ATS_EST_EN>)      _param_est_en,
+		(ParamFloat<px4::params::AV_ATS_EST_PVMIN>) _param_est_pvmin,
+		(ParamFloat<px4::params::AV_ATS_EST_DIS>)   _param_est_dis,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

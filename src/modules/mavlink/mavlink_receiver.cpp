@@ -1525,10 +1525,20 @@ MavlinkReceiver::handle_message_odometry(mavlink_message_t *msg)
 		_mocap_odometry_pub.publish(odom);
 		break;
 
+	case MAV_ESTIMATOR_TYPE_AUTOPILOT:
+		// Aviant ATS: accept the odometry of our own FC (same system, autopilot component) as an external
+		// velocity source for EKF2, so the ATS estimator is velocity-aided while the FC is alive (fix 3, defect 3606).
+		// Fused per EKF2_EV_CTRL (velocity only on the ATS).
+		if (msg->sysid == mavlink_system.sysid && msg->compid == MAV_COMP_ID_AUTOPILOT1) {
+			odom.timestamp = hrt_absolute_time();
+			_visual_odometry_pub.publish(odom);
+			break;
+		}
+
+	[[fallthrough]];
 	case MAV_ESTIMATOR_TYPE_GPS:
 	case MAV_ESTIMATOR_TYPE_GPS_INS:
 	case MAV_ESTIMATOR_TYPE_LIDAR:
-	case MAV_ESTIMATOR_TYPE_AUTOPILOT:
 	default:
 		mavlink_log_critical(&_mavlink_log_pub, "ODOMETRY: estimator_type %" PRIu8 " unsupported\t",
 				     odom_in.estimator_type);

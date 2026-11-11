@@ -45,3 +45,17 @@ param set-default AV_ATS_UPS_LO_V 4
 # Nominal parachute voltage measured to 23.4v on NT06
 param set-default AV_ATS_PARA_HI_V 25
 param set-default AV_ATS_PARA_LO_V 22
+
+# Estimator aiding (defect 3606). The FC streams ODOMETRY (estimator_type AUTOPILOT) to the ATS link:
+#   FC: mavlink stream -d <ATS link device> -s ODOMETRY -r 10
+# and the ATS EKF2 fuses its NED velocity. Position and yaw from the FC are not used, so the ATS
+# attitude stays independent of the FC's heading. The declination must match the FC's, since the FC velocity is in true north.
+param set-default EKF2_EV_CTRL 4
+param set-default EKF2_EVV_NOISE 0.5
+param set-default EKF2_EV_DELAY 0
+param set-default EKF2_MAG_DECL 4.68
+#
+# Alternative (fix 3-alt): complementary filter instead of EKF2, no velocity states at all:
+#   param set-default EKF2_EN 0
+#   param set-default ATT_EN 1
+#   param set-default ATT_MAG_DECL 4.68
