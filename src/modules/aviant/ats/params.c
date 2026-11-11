@@ -276,3 +276,53 @@ PARAM_DEFINE_FLOAT(AV_ATS_BAT_V_TOL, 0.0f);
  * @max 60000
  */
 PARAM_DEFINE_INT32(AV_ATS_BAT_TOUT, 1000);
+
+/**
+ * ATS land detection from FC armed state
+ *
+ * The ATS has no land detector. When enabled, the ATS publishes vehicle_land_detected
+ * (landed and at rest while the FC is disarmed), so EKF2 can constrain velocity on the ground.
+ *
+ * @group Aviant
+ * @boolean
+ */
+PARAM_DEFINE_INT32(AV_ATS_LAND_EN, 1);
+
+/**
+ * ATS estimator health check
+ *
+ * When enabled, a non-finite attitude, a collapsed velocity variance without aiding,
+ * or a tilt disagreement with the FC sets the IFAIL_ESTIMATOR internal failure flag (latched until reboot).
+ *
+ * @group Aviant
+ * @boolean
+ */
+PARAM_DEFINE_INT32(AV_ATS_EST_EN, 1);
+
+/**
+ * ATS estimator check: minimum unaided velocity variance
+ *
+ * After 30 s without any velocity or position aiding, a horizontal velocity variance
+ * below this value is treated as a collapsed (failed) filter.
+ *
+ * @group Aviant
+ * @unit (m/s)^2
+ * @decimal 2
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_EST_PVMIN, 1.0f);
+
+/**
+ * ATS estimator check: maximum tilt disagreement with FC
+ *
+ * If the ATS tilt differs from the FC attitude (MAVLink ATTITUDE) by more than this
+ * for 2 s, the estimator is treated as failed. 0 disables this check.
+ *
+ * @group Aviant
+ * @unit deg
+ * @decimal 1
+ * @min 0
+ * @max 180
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_EST_DIS, 30.0f);

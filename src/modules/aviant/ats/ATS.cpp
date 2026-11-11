@@ -219,6 +219,113 @@ ATS::get_fc_battery_voltage(uint8_t &ups_status_flags)
 	return bat.voltage_v;
 }
 
+void
+ATS::publish_land_detected(const aviant_ats_fc_check_s &fc)
+{
+	// The ATS has no land detector, so EKF2 treats it as in air from boot and dead-reckons velocity for the whole
+	// time the aircraft stands powered on. Use the FC's armed state instead: disarmed => on the ground and at rest.
+	// This lets EKF2 use zero-velocity and fake-position fusion before takeoff (fix 2, defect 3606).
+	if (_param_land_en.get() == 0) {
+		return;
+	}
+
+	const hrt_abstime now = hrt_absolute_time();
+
+	if (now - _last_land_detected_pub < 100_ms) {
+		return;
+	}
+
+	const bool landed = !fc.armed && !fc.rebooted_while_armed;
+
+	vehicle_land_detected_s ld{};
+	ld.landed = landed;
+	ld.maybe_landed = landed;
+	ld.ground_contact = landed;
+	ld.at_rest = landed;
+	ld.timestamp = now;
+	_land_detected_pub.publish(ld);
+	_last_land_detected_pub = now;
+}
+
+bool
+ATS::check_estimator()
+{
+	// Estimator health check (fix 5, defect 3606). Latches until reboot. Trips on:
+	//  - non-finite attitude
+	//  - collapsed horizontal velocity variance after > 30 s without any velocity/position aiding: an unaided
+	//    EKF2 velocity variance can only grow, the healthy ATS logs never go below ~50 (m/s)^2
+	//  - ATS tilt disagreeing with the FC attitude (MAVLink ATTITUDE -> external_ins_attitude) by more than
+	//    AV_ATS_EST_DIS for 2 s while the FC attitude is fresh
+	if (_param_est_en.get() == 0) {
+		return false;
+	}
+
+	if (_estimator_failed) {
+		return true;
+	}
+
+	const hrt_abstime now = hrt_absolute_time();
+
+	vehicle_attitude_s att{};
+	const bool have_att = _vehicle_attitude_sub.copy(&att);
+
+	if (have_att && !(PX4_ISFINITE(att.q[0]) && PX4_ISFINITE(att.q[1]) && PX4_ISFINITE(att.q[2]) && PX4_ISFINITE(att.q[3]))) {
+		PX4_ERR("estimator: attitude not finite");
+		_estimator_failed = true;
+		return true;
+	}
+
+	estimator_status_flags_s flags{};
+
+	if (_estimator_status_flags_sub.copy(&flags)) {
+		if (flags.cs_gps || flags.cs_ev_vel || flags.cs_ev_pos || flags.cs_fake_pos || flags.cs_opt_flow
+		    || flags.cs_vehicle_at_rest) {
+			_last_aided = now;
+		}
+	}
+
+	estimator_states_s states{};
+
+	if (_estimator_states_sub.copy(&states) && (now - _last_aided > 30_s)) {
+		// covariances[3..5] = velocity NED
+		const float pv = fminf(states.covariances[3], states.covariances[4]);
+
+		if (!(pv >= _param_est_pvmin.get())) { // also catches NaN
+			PX4_ERR("estimator: velocity variance collapsed (%.3g) without aiding", (double)pv);
+			_estimator_failed = true;
+			return true;
+		}
+	}
+
+	vehicle_attitude_s fc_att{};
+
+	if (have_att && _external_ins_attitude_sub.copy(&fc_att) && (now - fc_att.timestamp < 1_s)
+	    && _param_est_dis.get() > FLT_EPSILON) {
+		const matrix::Vector3f down_ats = matrix::Dcmf(matrix::Quatf(att.q)).transpose() * matrix::Vector3f(0.f, 0.f, 1.f);
+		const matrix::Vector3f down_fc = matrix::Dcmf(matrix::Quatf(fc_att.q)).transpose() * matrix::Vector3f(0.f, 0.f, 1.f);
+		const float tilt_diff = acosf(math::constrain(down_ats.dot(down_fc), -1.f, 1.f));
+
+		if (tilt_diff > math::radians(_param_est_dis.get())) {
+			if (_disagree_since == 0) {
+				_disagree_since = now;
+
+			} else if (now - _disagree_since > 2_s) {
+				PX4_ERR("estimator: ATS tilt disagrees with FC by %.0f deg", (double)math::degrees(tilt_diff));
+				_estimator_failed = true;
+				return true;
+			}
+
+		} else {
+			_disagree_since = 0;
+		}
+
+	} else {
+		_disagree_since = 0;
+	}
+
+	return false;
+}
+
 uint8_t
 ATS::check_for_acks()
 {
@@ -295,6 +402,12 @@ ATS::Run()
 	ats_state.accel_norm_fail = check_acceleration(ats_state.internal_failure_flags);
 	ats_state.attitude        = check_attitude(ats_state.internal_failure_flags);
 	ats_state.voltage         = check_voltages(ats_state.internal_failure_flags);
+
+	publish_land_detected(ats_state.fc);
+
+	if (check_estimator()) {
+		ats_state.internal_failure_flags |= aviant_ats_s::IFAIL_ESTIMATOR;
+	}
 
 	ats_state.fc_timeout      = hrt_elapsed_time(&ats_state.fc.last_sign_of_life) > (_params_av_ats_timeout.get() *
 				    1000ULL);
