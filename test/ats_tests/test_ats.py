@@ -23,7 +23,7 @@ def assert_ats_status(fc: FCMock, expected_flags: int,
                       expected_powerloss_enabled_status: bool,
                       expected_fc_armed: bool) -> None:
     """Validate AVIANT_ATS_STATUS flags and fc_state match expectations."""
-    status = fc.get_ats_status(timeout_s=0.5)
+    status = fc.get_ats_status(timeout_s=1.0)
     assert status is not None, "Did not receive AVIANT_ATS_STATUS message"
 
     assert expected_enabled_status == status.ats_enabled, f"Expected ats_enabled={expected_enabled_status}"
@@ -218,6 +218,16 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
                           expected_powerloss_enabled_status=True,
                           expected_fc_armed=True
                           )
+
+        # A dip much shorter than the 5 Hz status interval is still reported, then clears
+        fc.mav.drain()
+        fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
+        time.sleep(0.03)
+        fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
+        flags = [fc.mav.recv_until(lambda m: m.get_type() == 'AVIANT_ATS_STATUS', timeout_s=0.5).ats_status_flags
+                 for _ in range(4)]
+        assert any(f & mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY for f in flags), f"Dip not reported: {flags}"
+        assert flags[-1] == 0, f"Dip still reported 0.6 s later: {flags}"
 
 
         # 30v battery is mismatch, UPS should be flagged unhealthy

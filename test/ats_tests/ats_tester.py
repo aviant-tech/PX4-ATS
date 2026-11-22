@@ -249,12 +249,16 @@ class FCMock:
             f"Expected force-disarm COMPONENT_ARM_DISARM COMMAND_LONG within {timeout_s}s"
 
     def get_ats_status(self, timeout_s: float = 3.0):
-        """Receive the next AVIANT_ATS_STATUS message."""
+        """Receive the second AVIANT_ATS_STATUS message from now.
+
+        Each message carries every flag seen since the previous one, so the first may still
+        include flags from before the call.
+        """
         self.mav.drain()
-        return self.mav.recv_until(
-            lambda m: m.get_type() == 'AVIANT_ATS_STATUS',
-            timeout_s=timeout_s,
-        )
+        is_status = lambda m: m.get_type() == 'AVIANT_ATS_STATUS'  # noqa: E731
+        if self.mav.recv_until(is_status, timeout_s=timeout_s) is None:
+            return None
+        return self.mav.recv_until(is_status, timeout_s=timeout_s)
 
     @staticmethod
     def flags_str(flags: int) -> str:
