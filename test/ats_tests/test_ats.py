@@ -18,12 +18,25 @@ import pytest
 from ats_tester import FCMock, ParachuteMock, mavlink
 
 
-def assert_ats_status(fc: FCMock, expected_flags: int,
-                      expected_enabled_status: bool,
-                      expected_powerloss_enabled_status: bool,
-                      expected_fc_armed: bool) -> None:
-    """Validate AVIANT_ATS_STATUS flags and fc_state match expectations."""
-    status = fc.get_ats_status(timeout_s=0.5)
+def wait_for_ats_status(fc: FCMock, expected_flags: int,
+                        expected_enabled_status: bool,
+                        expected_powerloss_enabled_status: bool,
+                        expected_fc_armed: bool,
+                        timeout_s: float) -> None:
+    """Poll AVIANT_ATS_STATUS until it matches expectations, or assert on the last one after `timeout_s`."""
+    deadline = time.monotonic() + timeout_s
+    status = None
+    while (remaining := deadline - time.monotonic()) > 0:
+        msg = fc.get_ats_status(timeout_s=remaining)
+        if msg is None:
+            break
+        status = msg
+        if (status.ats_status_flags == expected_flags
+                and status.ats_enabled == expected_enabled_status
+                and status.power_loss_trigger_enabled == expected_powerloss_enabled_status
+                and status.fc_armed == expected_fc_armed):
+            return
+
     assert status is not None, "Did not receive AVIANT_ATS_STATUS message"
 
     assert expected_enabled_status == status.ats_enabled, f"Expected ats_enabled={expected_enabled_status}"
@@ -62,16 +75,15 @@ def test_deploy_timeout_accel_fail(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
-    time.sleep(1.1)  # wait for FC BATTERY_STATUS to time out, otherwise the test is flaky
-
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=2.5)  # FC BATTERY_STATUS must time out first
 
 
 @pytest.mark.parametrize('px4', [{
@@ -99,16 +111,15 @@ def test_deploy_timeout_roll_fail(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
-    time.sleep(1.1)  # wait for FC BATTERY_STATUS to time out, otherwise the test is flaky
-
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=2.5)  # FC BATTERY_STATUS must time out first
 
 
 @pytest.mark.parametrize('px4', [{
@@ -136,16 +147,15 @@ def test_deploy_timeout_pitch_fail(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.pause_sending()
 
-    time.sleep(1.1)  # wait for FC BATTERY_STATUS to time out, otherwise the test is flaky
-
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=2.5)  # FC BATTERY_STATUS must time out first
 
 
 @pytest.mark.parametrize('px4', [{
@@ -169,13 +179,14 @@ def test_deploy_reboot_armed_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.simulate_fc_reboot()
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=False)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=False,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -201,71 +212,72 @@ def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: Parach
 
         # Low UPS voltage should trigger unhealthy
         fc.set_ats_param('AV_ATS_UPS_SM', 3.0)
-        time.sleep(0.1)
-        assert_ats_status(fc,
-                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True
-                          )
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0
+                            )
 
         # Back to healthy
         fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
-        time.sleep(0.1)
-        assert_ats_status(fc,
-                          expected_flags=0,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True
-                          )
+        wait_for_ats_status(fc,
+                            expected_flags=0,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0
+                            )
 
 
         # 30v battery is mismatch, UPS should be flagged unhealthy
         fc._BATTERY_VOLTAGE_MV = 30000
-        time.sleep(1.1)  # BATTERY_STATUS is only 2hz
-        assert_ats_status(fc,
-                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True
-                          )
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.5  # BATTERY_STATUS is only 2hz
+                            )
 
         # Back to healthy
         fc._BATTERY_VOLTAGE_MV = 50000
-        time.sleep(1.1)  # BATTERY_STATUS is only 2hz
-        assert_ats_status(fc,
-                          expected_flags=0,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True
-                          )
+        wait_for_ats_status(fc,
+                            expected_flags=0,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.5  # BATTERY_STATUS is only 2hz
+                            )
 
         # Set parachute voltage low so it doesn't block deployment
         fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
 
         # don't deploy when only one is low
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
-        time.sleep(0.1)
 
         # now, UPS is unhealthy since main power measurements disagree
-        assert_ats_status(fc,
-                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True
-                          )
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0
+                            )
 
     # when the other goes low too, we deploy
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -292,36 +304,36 @@ def test_ups_high_voltage_flags_only(fc: FCMock, parachute: ParachuteMock):
 
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.set_ats_param('AV_ATS_UPS_SM', 10.0)
-        time.sleep(0.15)
-        assert_ats_status(fc,
-                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True)
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0)
 
         fc.set_ats_param('AV_ATS_UPS_SM', 5.0)
-        time.sleep(0.15)
-        assert_ats_status(fc,
-                          expected_flags=0,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True)
+        wait_for_ats_status(fc,
+                            expected_flags=0,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0)
 
         fc.set_ats_param('AV_ATS_PARA_SM', 30.0)
-        time.sleep(0.15)
-        assert_ats_status(fc,
-                          expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True)
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0)
 
         fc.set_ats_param('AV_ATS_PARA_SM', 24.0)
-        time.sleep(0.15)
-        assert_ats_status(fc,
-                          expected_flags=0,
-                          expected_enabled_status=True,
-                          expected_powerloss_enabled_status=True,
-                          expected_fc_armed=True)
+        wait_for_ats_status(fc,
+                            expected_flags=0,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -348,23 +360,25 @@ def test_powerloss_deploy_requires_parachute_capacitor_low(fc: FCMock, parachute
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -391,16 +405,17 @@ def test_nodeploy_disabled(fc: FCMock, parachute: ParachuteMock):
 
     # All sensor fails + voltage fail -> parachute_deploy is set in the uORB
     # message, but no command is sent because ATS is disabled.
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
-                      expected_enabled_status=False,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PARACHUTE_DEPLOY),
+                        expected_enabled_status=False,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -420,20 +435,21 @@ def test_nodeploy_disarmed(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC is DISARMED, even with all fail flags set."""
 
     fc._BATTERY_VOLTAGE_MV = 10000  # match measurements to avoid unhealthy UPS
-
     time.sleep(0.1)
+
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         pass
 
     # Sensor fail + main low, but disarmed blocks control-failure and power-loss deploy.
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=False)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_POWER_LOSS),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=False,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -457,14 +473,13 @@ def test_nodeploy_timeout_no_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.pause_sending()
 
-    time.sleep(1.1)  # wait for FC BATTERY_STATUS to time out, otherwise the test is flaky
-
-    assert_ats_status(fc,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
-                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,  # FC BATTERY_STATUS missing/stale
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_FC_TIMEOUT
+                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,  # FC BATTERY_STATUS missing/stale
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=2.5)  # FC BATTERY_STATUS must time out first
 
 
 @pytest.mark.parametrize('px4', [{
@@ -493,16 +508,15 @@ def test_nodeploy_sensor_fail_no_timeout(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.pause_sending()
 
-    time.sleep(1.1)  # wait for FC BATTERY_STATUS to time out, otherwise the test is flaky
-
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY  # FC BATTERY_STATUS missing/stale
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=2.5)  # FC BATTERY_STATUS must time out first
 
 
 @pytest.mark.parametrize('px4', [{
@@ -526,11 +540,12 @@ def test_nodeploy_reboot_armed_no_sensor_fail(fc: FCMock, parachute: ParachuteMo
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.simulate_fc_reboot()
 
-    assert_ats_status(fc,
-                      expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED,
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=False)
+    wait_for_ats_status(fc,
+                        expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_REBOOTED_WHILE_ARMED,
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=False,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -549,18 +564,19 @@ def test_nodeploy_reboot_armed_no_sensor_fail(fc: FCMock, parachute: ParachuteMo
 def test_nodeploy_reboot_disarmed(fc: FCMock, parachute: ParachuteMock):
     """No deploy when FC reboots while disarmed, even with failure conditions.
     """
-
     time.sleep(0.1)
+
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.simulate_fc_reboot()
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=False)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=False,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -584,13 +600,14 @@ def test_nodeploy_reboot_small_time_drop(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_no_deploy(duration_s=1.5), fc.expect_no_flighttermination(duration_s=1.5):
         fc.boot_timestamp_s += 5
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
 
 @pytest.mark.parametrize('px4', [{
@@ -876,13 +893,14 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
     with parachute.expect_no_deploy(duration_s=wait_time_s), fc.expect_no_flighttermination(duration_s=wait_time_s):
         pass
 
-    assert_ats_status(fc,
-                      expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
-                                      | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
-                      expected_enabled_status=True,
-                      expected_powerloss_enabled_status=True,
-                      expected_fc_armed=True)
+    wait_for_ats_status(fc,
+                        expected_flags=(mavlink.AVIANT_ATS_STATUS_FLAG_ACCEL_NORM_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_ROLL_FAIL
+                                        | mavlink.AVIANT_ATS_STATUS_FLAG_PITCH_FAIL),
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
 
     with parachute.expect_deploy(timeout_s=0.5), fc.expect_flighttermination(timeout_s=0.5):
         fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
