@@ -248,9 +248,10 @@ class FCMock:
         assert msg is not None, \
             f"Expected force-disarm COMPONENT_ARM_DISARM COMMAND_LONG within {timeout_s}s"
 
-    def get_ats_status(self, timeout_s: float = 3.0):
-        """Receive the next AVIANT_ATS_STATUS message."""
-        self.mav.drain()
+    def get_ats_status(self, timeout_s: float = 3.0, drain: bool = True):
+        """Receive the next AVIANT_ATS_STATUS message, discarding buffered messages first if `drain`."""
+        if drain:
+            self.mav.drain()
         return self.mav.recv_until(
             lambda m: m.get_type() == 'AVIANT_ATS_STATUS',
             timeout_s=timeout_s,

@@ -22,12 +22,18 @@ def wait_for_ats_status(fc: FCMock, expected_flags: int,
                         expected_enabled_status: bool,
                         expected_powerloss_enabled_status: bool,
                         expected_fc_armed: bool,
-                        timeout_s: float) -> None:
-    """Poll AVIANT_ATS_STATUS until it matches expectations, or assert on the last one after `timeout_s`."""
+                        timeout_s: float,
+                        drain_first: bool = True) -> None:
+    """Poll AVIANT_ATS_STATUS until it matches expectations, or assert on the last one after `timeout_s`.
+
+    Buffered messages are discarded once before polling if `drain_first`, never between polls.
+    """
     deadline = time.monotonic() + timeout_s
     status = None
+    drain = drain_first
     while (remaining := deadline - time.monotonic()) > 0:
-        msg = fc.get_ats_status(timeout_s=remaining)
+        msg = fc.get_ats_status(timeout_s=remaining, drain=drain)
+        drain = False
         if msg is None:
             break
         status = msg
