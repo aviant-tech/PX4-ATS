@@ -23,6 +23,7 @@ pymavlink).  See conftest.py.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import struct
 import threading
 import time
 from pymavlink import mavutil
@@ -198,6 +199,17 @@ class FCMock:
                 param_id=param_id.encode('utf-8'),
                 param_value=value,
                 param_type=mavlink.MAV_PARAM_TYPE_REAL32,
+            )
+
+    def set_ats_param_int(self, param_id: str, value: int) -> None:
+        """Set an INT32 PX4 parameter via MAVLink PARAM_SET (bytewise encoded in the float field)."""
+        with self.mav.conn() as c:
+            c.mav.param_set_send(
+                target_system=self.SYS_ID,
+                target_component=self.ATS_COMP_ID,
+                param_id=param_id.encode('utf-8'),
+                param_value=struct.unpack('<f', struct.pack('<i', value))[0],
+                param_type=mavlink.MAV_PARAM_TYPE_INT32,
             )
 
     def send_flighttermination_ack_accepted(self) -> None:

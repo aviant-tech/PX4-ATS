@@ -208,6 +208,58 @@ def test_deploy_reboot_armed_sensor_fail(fc: FCMock, parachute: ParachuteMock):
     'PARAM_AV_ATS_MP2_SM':     '50.0',
     'PARAM_AV_ATS_UPS_SM':     '5.0',
 }], indirect=True)
+def test_short_ups_glitch_is_reported(fc: FCMock):
+    """A UPS glitch much shorter than the AVIANT_ATS_STATUS period is still reported."""
+
+    fc.set_armed(True)
+
+    wait_for_ats_status(fc,
+                        expected_flags=0,
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
+
+    # Each glitch is 10ms, and the mavlink stream has a 200ms period.
+    # so each one has about 1/20 chance of being detected "naturally".
+    # The probability of 10 repetitions being detected naturally is basically 0
+    for i in range(10):
+        fc.mav.drain()
+        fc.set_ats_param_int('AV_ATS_UPS_GLT', 1)
+
+        # Don't drain here, it could discard the single message carrying the glitch
+        wait_for_ats_status(fc,
+                            expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=1.0,
+                            drain_first=False)
+
+        # Power test.
+        # If the status flag is still active for another 500ms then it's not a short glitch,
+        # and this test is ineffective.
+        wait_for_ats_status(fc,
+                            expected_flags=0,
+                            expected_enabled_status=True,
+                            expected_powerloss_enabled_status=True,
+                            expected_fc_armed=True,
+                            timeout_s=0.5)
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':    '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '5.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
+}], indirect=True)
 def test_deploy_voltage_main_low_and_ups_unhealthy(fc: FCMock, parachute: ParachuteMock):
     """Deploy on dual main low even if UPS is unhealthy."""
 

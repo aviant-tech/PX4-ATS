@@ -32,6 +32,18 @@ PARAM_DEFINE_FLOAT(AV_ATS_MP2_SM, 50.0f);
 PARAM_DEFINE_FLOAT(AV_ATS_UPS_SM, 5.0f);
 
 /**
+ * Simulated UPS glitch length (SITL)
+ *
+ * When set > 0, the UPS channel reads 0 V for this many ADC samples (10 ms each),
+ * then the parameter is reset to 0.
+ *
+ * @group Aviant
+ * @min 0
+ * @max 100
+ */
+PARAM_DEFINE_INT32(AV_ATS_UPS_GLT, 0);
+
+/**
  * Simulated parachute capacitor voltage (SITL)
  *
  * @group Aviant

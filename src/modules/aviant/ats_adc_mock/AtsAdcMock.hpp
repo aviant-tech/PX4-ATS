@@ -32,10 +32,13 @@ private:
 
 	uORB::Publication<adc_report_s> _adc_pub{ORB_ID(adc_report)};
 
+	int32_t _ups_glitch_samples_left{0};
+
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::AV_ATS_MP1_SM>) _param_mp1_sim,
 		(ParamFloat<px4::params::AV_ATS_MP2_SM>) _param_mp2_sim,
 		(ParamFloat<px4::params::AV_ATS_UPS_SM>) _param_ups_sim,
+		(ParamInt<px4::params::AV_ATS_UPS_GLT>)  _param_ups_glitch,
 		(ParamFloat<px4::params::AV_ATS_PARA_SM>) _param_para_sim,
 		(ParamInt<px4::params::AV_ATS_MP1_CH>)   _param_mp1_ch,
 		(ParamFloat<px4::params::AV_ATS_MP1_DV>) _param_mp1_div,
