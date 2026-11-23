@@ -37,6 +37,19 @@ void AtsAdcMock::Run()
 
 	updateParams();
 
+	if (_ups_glitch_samples_left == 0 && _param_ups_glitch.get() > 0) {
+		_ups_glitch_samples_left = _param_ups_glitch.get();
+		_param_ups_glitch.set(0);
+		_param_ups_glitch.commit_no_notification();
+	}
+
+	float ups_v = _param_ups_sim.get();
+
+	if (_ups_glitch_samples_left > 0) {
+		ups_v = 0.f;
+		_ups_glitch_samples_left--;
+	}
+
 	adc_report_s adc{};
 	adc.v_ref = V_REF;
 	adc.resolution = RESOLUTION;
@@ -52,7 +65,7 @@ void AtsAdcMock::Run()
 	} channels[] = {
 		{ _param_mp1_ch.get(), _param_mp1_sim.get(), _param_mp1_div.get() },
 		{ _param_mp2_ch.get(), _param_mp2_sim.get(), _param_mp2_div.get() },
-		{ _param_ups_ch.get(), _param_ups_sim.get(), _param_ups_div.get() },
+		{ _param_ups_ch.get(), ups_v, _param_ups_div.get() },
 		{ _param_para_ch.get(), _param_para_sim.get(), _param_para_div.get() },
 	};
 

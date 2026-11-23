@@ -3,6 +3,9 @@
 
 uint64 timestamp
 
+# Queued so the mavlink stream can accumulate flags from every sample
+uint8 ORB_QUEUE_LENGTH = 4
+
 AviantAtsFcCheck fc
 bool fc_timeout
 bool accel_norm_fail

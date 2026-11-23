@@ -1124,7 +1124,14 @@ bool Logger::start_stop_logging()
 
 		aviant_ats_s aviant_ats{};
 
-		if (_aviant_ats_sub.update(&aviant_ats)) {
+		// aviant_ats is queued: drain to the latest sample
+		bool aviant_ats_updated = false;
+
+		while (_aviant_ats_sub.update(&aviant_ats)) {
+			aviant_ats_updated = true;
+		}
+
+		if (aviant_ats_updated) {
 
 			desired_state = (
 						aviant_ats.fc.armed
