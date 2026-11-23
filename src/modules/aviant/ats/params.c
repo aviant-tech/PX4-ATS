@@ -265,6 +265,23 @@ PARAM_DEFINE_FLOAT(AV_ATS_PARA_DV, 1.0f);
 PARAM_DEFINE_FLOAT(AV_ATS_BAT_V_TOL, 0.0f);
 
 /**
+ * ATS main power averaging time for the FC battery voltage comparison
+ *
+ * Time constant of the low-pass filter applied to MP1 and MP2 before they are
+ * compared with the FC BATTERY_STATUS voltage (AV_ATS_BAT_V_TOL).
+ * The FC sends a filtered voltage at 1 Hz, so it lags main power on load steps.
+ * The MP1 vs MP2 comparison and all other voltage checks use unfiltered values.
+ * 0 compares against unfiltered main power.
+ *
+ * @group Aviant
+ * @unit s
+ * @decimal 1
+ * @min 0.0
+ * @max 10.0
+ */
+PARAM_DEFINE_FLOAT(AV_ATS_BAT_V_TAU, 2.0f);
+
+/**
  * ATS FC battery_status max age
  *
  * FC battery_status is considered invalid if older than this

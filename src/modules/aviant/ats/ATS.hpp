@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <lib/hysteresis/hysteresis.h>
+#include <lib/mathlib/math/filter/AlphaFilter.hpp>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_config.h>
@@ -62,6 +63,14 @@ private:
 
 	systemlib::Hysteresis _deployment_hysteresis{false};
 
+	static constexpr hrt_abstime RUN_INTERVAL{5_ms};
+	static constexpr float RUN_INTERVAL_S{RUN_INTERVAL * 1e-6f};
+
+	// Main power averaged over AV_ATS_BAT_V_TAU, used only in the FC battery voltage comparison
+	AlphaFilter<float> _mp1_avg_v{};
+	AlphaFilter<float> _mp2_avg_v{};
+	bool _mp_avg_initialized{false};
+
 	hrt_abstime _last_flighttermination_sent{0};
 	hrt_abstime _last_parachute_sent{0};
 
@@ -102,6 +111,7 @@ private:
 		(ParamFloat<px4::params::AV_ATS_PARA_DV>)     _param_para_div,
 		(ParamFloat<px4::params::AV_ATS_BAT_V_TOL>)   _param_av_ats_bat_v_tol,
 		(ParamInt<px4::params::AV_ATS_BAT_TOUT>) 	_param_av_ats_bat_tout,
+		(ParamFloat<px4::params::AV_ATS_BAT_V_TAU>)   _param_av_ats_bat_v_tau,
 		(ParamInt<px4::params::MAV_SYS_ID>)         _param_mav_sys_id,
 		(ParamInt<px4::params::MAV_COMP_ID>)        _param_mav_comp_id
 	);

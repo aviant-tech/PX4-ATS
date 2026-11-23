@@ -33,5 +33,8 @@ param set-default AV_ATS_PARA_CH 3
 param set-default AV_ATS_PARA_DV 10.0
 
 param set-default AV_ATS_BAT_V_TOL 10.0
+# No main power averaging in the FC battery voltage check, so a main power
+# change set by a test shows up in the ATS flags immediately
+param set-default AV_ATS_BAT_V_TAU 0.0
 
 param set SIH_VEHICLE_TYPE 0

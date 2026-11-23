@@ -14,6 +14,7 @@
 [ -n "$PARAM_AV_ATS_UPS_LO_V" ]  && param set AV_ATS_UPS_LO_V $PARAM_AV_ATS_UPS_LO_V
 [ -n "$PARAM_AV_ATS_UPS_HI_V" ] && param set AV_ATS_UPS_HI_V $PARAM_AV_ATS_UPS_HI_V
 [ -n "$PARAM_AV_ATS_PARA_HI_V" ] && param set AV_ATS_PARA_HI_V $PARAM_AV_ATS_PARA_HI_V
+[ -n "$PARAM_AV_ATS_BAT_V_TAU" ] && param set AV_ATS_BAT_V_TAU $PARAM_AV_ATS_BAT_V_TAU
 
 # ADC channel/divider config (shared by ATS and the ADC mock)
 [ -n "$PARAM_AV_ATS_MP1_CH" ]  && param set AV_ATS_MP1_CH  $PARAM_AV_ATS_MP1_CH

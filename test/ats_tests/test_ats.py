@@ -964,3 +964,64 @@ def test_armed_12h(fc: FCMock, parachute: ParachuteMock):
         fc.set_ats_param('AV_ATS_PARA_SM', 18.0)
         fc.set_ats_param('AV_ATS_MP1_SM', 10.0)
         fc.set_ats_param('AV_ATS_MP2_SM', 10.0)
+
+
+@pytest.mark.parametrize('px4', [{
+    'PARAM_AV_ATS_EN':    '1',
+    'PARAM_AV_ATS_TIMEOUT':   '150',
+    'PARAM_AV_ATS_ACC_NORM':  '5.0',
+    'PARAM_AV_ATS_ROLL_ANG':  '80.0',
+    'PARAM_AV_ATS_PITCH_ANG': '60.0',
+    'PARAM_AV_ATS_V_EN':      '1',
+    'PARAM_AV_ATS_MP_LO_V':   '15.0',
+    'PARAM_AV_ATS_UPS_LO_V':  '4.0',
+    'PARAM_AV_ATS_MP1_SM':     '50.0',
+    'PARAM_AV_ATS_MP2_SM':     '50.0',
+    'PARAM_AV_ATS_UPS_SM':     '5.0',
+    'PARAM_AV_ATS_BAT_V_TAU':  '2.0',
+}], indirect=True)
+def test_fc_mismatch_uses_averaged_main_power(fc: FCMock, parachute: ParachuteMock):
+    """FC battery voltage is compared against main power averaged over AV_ATS_BAT_V_TAU"""
+
+    fc.set_armed(True)
+
+    wait_for_ats_status(fc,
+                        expected_flags=0,
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=1.0)
+
+    # MP1 and MP2 drop 15 V (above the 10 V tolerance)
+    # Lower them in two steps, so they are never more than 10v from each other,
+    # which would raise the MP_MISMATCH flag and fail the test
+    for v in (42.5, 35.0):
+        fc.set_ats_param('AV_ATS_MP1_SM', v)
+        fc.set_ats_param('AV_ATS_MP2_SM', v)
+
+    # The averaged values lag, so no mismatch expected for ~2.2 s (2 s time constant).
+    # Every status in the first 0.5 s must be clean.
+    status = fc.mav.recv_until(
+        lambda m: m.get_type() == 'AVIANT_ATS_STATUS' and m.ats_status_flags != 0,
+        timeout_s=0.5,
+    )
+    assert status is None, f"Unexpected flags {fc.flags_str(status.ats_status_flags)}"
+
+    # Then we will get a failure before 3 more seconds have passed
+    wait_for_ats_status(fc,
+                        expected_flags=mavlink.AVIANT_ATS_STATUS_FLAG_UPS_UNHEALTHY,
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=3.0)
+
+    # 0 compares against unfiltered main power: recovery is immediate
+    fc.set_ats_param('AV_ATS_BAT_V_TAU', 0.0)
+    fc.set_ats_param('AV_ATS_MP1_SM', 50.0)
+    fc.set_ats_param('AV_ATS_MP2_SM', 50.0)
+    wait_for_ats_status(fc,
+                        expected_flags=0,
+                        expected_enabled_status=True,
+                        expected_powerloss_enabled_status=True,
+                        expected_fc_armed=True,
+                        timeout_s=0.5)

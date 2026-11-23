@@ -33,7 +33,7 @@ ATS::init()
 	bool success = true;
 
 	// 200hz is twice as fast as adc_report is expected, this is the minimum rate we should run at
-	ScheduleOnInterval(5_ms);
+	ScheduleOnInterval(RUN_INTERVAL);
 
 	return success;
 }
@@ -163,8 +163,21 @@ ATS::check_voltages(uint8_t &internal_failure_flags)
 
 	result.fc_battery_v = get_fc_battery_voltage(result.ups_status_flags);
 
-	const float mp1_diff_v = result.fc_battery_v - result.main_power1_v;
-	const float mp2_diff_v = result.fc_battery_v - result.main_power2_v;
+	// The FC sends its battery voltage low-pass filtered and only at 1 Hz, so it lags
+	// main power on every load step. Compare it against main power averaged over AV_ATS_BAT_V_TAU.
+	if (!_mp_avg_initialized) {
+		_mp1_avg_v.reset(mp1_v);
+		_mp2_avg_v.reset(mp2_v);
+		_mp_avg_initialized = true;
+	}
+
+	_mp1_avg_v.setParameters(RUN_INTERVAL_S, _param_av_ats_bat_v_tau.get());
+	_mp2_avg_v.setParameters(RUN_INTERVAL_S, _param_av_ats_bat_v_tau.get());
+	_mp1_avg_v.update(mp1_v);
+	_mp2_avg_v.update(mp2_v);
+
+	const float mp1_diff_v = result.fc_battery_v - _mp1_avg_v.getState();
+	const float mp2_diff_v = result.fc_battery_v - _mp2_avg_v.getState();
 
 	if (_params_av_ats_ups_lo_v.get() > FLT_EPSILON && ups_v < _params_av_ats_ups_lo_v.get()) {
 		result.ups_status_flags |= aviant_ats_voltage_check_s::UPS_STATUS_LOWV;
