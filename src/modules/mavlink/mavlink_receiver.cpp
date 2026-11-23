@@ -527,9 +527,10 @@ void MavlinkReceiver::handle_message_command_both(mavlink_message_t *msg, const 
 						     );
 
 			if (is_flighttermination || is_force_disarm) {
-				aviant_ats_s ats{};
+				// aviant_ats is queued, so copy() may return a stale sample: drain to the latest
+				while (_aviant_ats_sub.update(&_aviant_ats)) {}
 
-				if (_aviant_ats_sub.copy(&ats) && ats.ats_enabled && ats.parachute_deploy) {
+				if (_aviant_ats.ats_enabled && _aviant_ats.parachute_deploy) {
 					PX4_WARN("Acked %d on behalf of autopilot", cmd_mavlink.command);
 
 					mavlink_command_ack_t ack{};

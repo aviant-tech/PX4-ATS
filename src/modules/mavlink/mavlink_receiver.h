@@ -368,6 +368,7 @@ private:
 	uORB::Subscription	_vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Subscription	_autotune_attitude_control_status_sub{ORB_ID(autotune_attitude_control_status)};
 	uORB::Subscription	_aviant_ats_sub{ORB_ID(aviant_ats)};
+	aviant_ats_s		_aviant_ats{};
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 

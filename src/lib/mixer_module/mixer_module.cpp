@@ -515,7 +515,8 @@ MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updat
 
 #if defined CONFIG_MODULES_AVIANT_ATS
 
-	_aviant_ats_sub.update(&_aviant_ats);
+	// aviant_ats is queued: drain to the latest sample
+	while (_aviant_ats_sub.update(&_aviant_ats)) {}
 
 	if (_aviant_ats.parachute_deploy) {
 		// overwrite outputs in case of parachute_deploy with _failsafe_value values
